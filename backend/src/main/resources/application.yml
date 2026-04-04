@@ -29,6 +29,8 @@ app:
     secret: ${JWT_SECRET:ChangeThisToASecureRandomStringAtLeast256BitsLongForHS256Algorithm!!}
     access-token-expiration-ms: 900000
     refresh-token-expiration-ms: 604800000
+  cors:
+    allowed-origins: ${CORS_ORIGINS:}
   default-admin:
     username: admin
     password: ${ADMIN_PASSWORD:admin123}
