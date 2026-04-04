@@ -17,4 +17,4 @@ desktop.ini
 
 # Env files
 .env
-.env.*
+!.env.example
