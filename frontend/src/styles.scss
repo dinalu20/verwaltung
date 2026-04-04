@@ -1,0 +1,47 @@
+@use '@angular/material' as mat;
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+.snack-success { --mdc-snackbar-container-color: #4caf50; }
+.snack-error { --mdc-snackbar-container-color: #f44336; }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.page-header h2 { margin: 0; }
+
+.full-width { width: 100%; }
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.form-row mat-form-field { flex: 1; min-width: 200px; }
+
+table { width: 100%; }
+
+.mat-mdc-row:hover { background-color: rgba(0,0,0,0.04); cursor: pointer; }
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-paid { background: #e8f5e9; color: #2e7d32; }
+.status-partial { background: #fff3e0; color: #e65100; }
+.status-open { background: #fce4ec; color: #c62828; }
+.status-high { background: #e8f5e9; color: #2e7d32; }
+.status-medium { background: #fff3e0; color: #e65100; }
+.status-low { background: #fce4ec; color: #c62828; }
+
+@media print {
+  mat-sidenav, mat-toolbar { display: none !important; }
+  .content-wrapper { padding: 0 !important; }
+  .no-print { display: none !important; }
+}
