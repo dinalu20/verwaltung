@@ -47,6 +47,10 @@ import { NgIf } from '@angular/common';
             <mat-icon matListItemIcon>account_balance</mat-icon>
             <span>Bankimport</span>
           </a>
+          <a mat-list-item routerLink="/fee-import" routerLinkActive="active">
+            <mat-icon matListItemIcon>price_check</mat-icon>
+            <span>Beitrags-Import</span>
+          </a>
           <a mat-list-item routerLink="/members-import" routerLinkActive="active">
             <mat-icon matListItemIcon>upload_file</mat-icon>
             <span>CSV Import</span>

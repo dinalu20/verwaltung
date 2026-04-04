@@ -8,6 +8,7 @@ import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.List;
 
 @Service
@@ -76,6 +77,74 @@ public class MemberMatchingService {
         }
 
         return Math.max(fullNameScore, (directLastName + directFirstName) / 2);
+    }
+
+    /**
+     * Direct name-to-name matching for Excel fee imports.
+     * Weights last name higher (70%) than first name (30%).
+     */
+    public MatchResult findBestMatchByName(String lastName, String firstName) {
+        if (lastName == null || lastName.isBlank()) return null;
+
+        String normLast = normalize(lastName);
+        String normFirst = normalize(firstName != null ? firstName : "");
+
+        List<Member> members = memberRepository.findByStatusOrderByLastNameAscFirstNameAsc(MemberStatus.ACTIVE);
+
+        Member bestMember = null;
+        double bestScore = 0;
+
+        for (Member m : members) {
+            String mLast = normalize(m.getLastName());
+            String mFirst = normalize(m.getFirstName());
+
+            double lastScore;
+            if (mLast.equals(normLast)) {
+                lastScore = 1.0;
+            } else if (mLast.contains(normLast) || normLast.contains(mLast)) {
+                lastScore = 0.9;
+            } else {
+                lastScore = similarity.apply(normLast, mLast);
+            }
+
+            double firstScore;
+            if (normFirst.isEmpty() || mFirst.isEmpty()) {
+                firstScore = 0.3;
+            } else if (mFirst.equals(normFirst)) {
+                firstScore = 1.0;
+            } else if (mFirst.startsWith(normFirst.substring(0, Math.min(3, normFirst.length())))
+                    || normFirst.startsWith(mFirst.substring(0, Math.min(3, mFirst.length())))) {
+                firstScore = Math.max(0.85, similarity.apply(normFirst, mFirst));
+            } else {
+                firstScore = similarity.apply(normFirst, mFirst);
+            }
+
+            double combined = lastScore * 0.7 + firstScore * 0.3;
+
+            if (combined > bestScore) {
+                bestScore = combined;
+                bestMember = m;
+            }
+        }
+
+        if (bestMember == null || bestScore < 0.55) return null;
+
+        int confidence = (int) Math.round(bestScore * 100);
+        confidence = Math.min(confidence, 100);
+
+        return new MatchResult(bestMember, confidence);
+    }
+
+    static String normalize(String input) {
+        if (input == null) return "";
+        String s = input.trim().toLowerCase();
+        s = s.replace("ü", "ue")
+             .replace("ö", "oe")
+             .replace("ä", "ae")
+             .replace("ß", "ss");
+        s = Normalizer.normalize(s, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return s.replaceAll("\\s+", " ").trim();
     }
 
     private boolean isLikelyMembershipAmount(BigDecimal amount) {

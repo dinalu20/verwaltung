@@ -29,8 +29,9 @@ public class AnnualListController {
     @GetMapping("/pdf")
     public ResponseEntity<byte[]> getAnnualListPdf(
             @RequestParam(defaultValue = "2022") int fromYear,
-            @RequestParam(defaultValue = "2026") int toYear) {
-        List<AnnualFeeRow> rows = annualFeeService.getAnnualList(fromYear, toYear);
+            @RequestParam(defaultValue = "2026") int toYear,
+            @RequestParam(defaultValue = "true") boolean onlyWithPayments) {
+        List<AnnualFeeRow> rows = annualFeeService.getAnnualList(fromYear, toYear, onlyWithPayments);
         byte[] pdf = pdfService.generateAnnualListPdf(rows, fromYear, toYear);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,

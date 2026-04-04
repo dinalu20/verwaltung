@@ -20,6 +20,7 @@ export const routes: Routes = [
       { path: 'annual-list', loadComponent: () => import('./features/annual-list/annual-list.component').then(m => m.AnnualListComponent) },
       { path: 'bank-import', loadComponent: () => import('./features/bank-import/bank-import.component').then(m => m.BankImportComponent) },
       { path: 'bank-import/:id', loadComponent: () => import('./features/bank-import/bank-import-detail.component').then(m => m.BankImportDetailComponent) },
+      { path: 'fee-import', loadComponent: () => import('./features/fee-import/fee-import.component').then(m => m.FeeImportComponent) },
       { path: 'users', loadComponent: () => import('./features/users/user-list.component').then(m => m.UserListComponent) },
     ]
   },

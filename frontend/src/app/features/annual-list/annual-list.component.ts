@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { NgFor, NgIf } from '@angular/common';
+import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 
 @Component({
@@ -46,7 +47,7 @@ import { ApiService } from '../../core/services/api.service';
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="goToMember(row)" style="cursor:pointer"></tr>
         </table>
         <p *ngIf="rows.length === 0">Keine Daten vorhanden.</p>
       </mat-card-content>
@@ -60,7 +61,7 @@ export class AnnualListComponent implements OnInit {
   years: number[] = [];
   displayedColumns: string[] = [];
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit() { this.load(); }
 
@@ -69,6 +70,10 @@ export class AnnualListComponent implements OnInit {
     for (let y = this.fromYear; y <= this.toYear; y++) this.years.push(y);
     this.displayedColumns = ['nr', 'lastName', 'firstName', ...this.years.map(y => 'y' + y)];
     this.api.get<any[]>('/api/annual-list', { fromYear: this.fromYear, toYear: this.toYear }).subscribe(d => this.rows = d);
+  }
+
+  goToMember(row: any) {
+    this.router.navigate(['/members', row.memberId]);
   }
 
   downloadPdf() {

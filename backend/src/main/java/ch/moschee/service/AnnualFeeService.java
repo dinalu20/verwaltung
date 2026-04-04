@@ -39,6 +39,10 @@ public class AnnualFeeService {
     }
 
     public List<AnnualFeeRow> getAnnualList(int fromYear, int toYear) {
+        return getAnnualList(fromYear, toYear, false);
+    }
+
+    public List<AnnualFeeRow> getAnnualList(int fromYear, int toYear, boolean onlyWithPayments) {
         List<Member> members = memberRepository.findByStatusOrderByLastNameAscFirstNameAsc(MemberStatus.ACTIVE);
         List<MemberAnnualFee> allFees = feeRepository.findAllForYearRange(fromYear, toYear);
 
@@ -52,6 +56,14 @@ public class AnnualFeeService {
         List<AnnualFeeRow> rows = new ArrayList<>();
         int rowNum = 1;
         for (Member m : members) {
+            Map<Integer, BigDecimal> memberFees = feeMap.getOrDefault(m.getId(), Collections.emptyMap());
+
+            if (onlyWithPayments) {
+                boolean hasPaid = memberFees.values().stream()
+                        .anyMatch(v -> v != null && v.compareTo(BigDecimal.ZERO) > 0);
+                if (!hasPaid) continue;
+            }
+
             AnnualFeeRow row = new AnnualFeeRow();
             row.setRowNumber(rowNum++);
             row.setMemberId(m.getId());
@@ -59,7 +71,6 @@ public class AnnualFeeService {
             row.setFirstName(m.getFirstName());
 
             Map<Integer, BigDecimal> yearlyPayments = new LinkedHashMap<>();
-            Map<Integer, BigDecimal> memberFees = feeMap.getOrDefault(m.getId(), Collections.emptyMap());
             for (int y = fromYear; y <= toYear; y++) {
                 yearlyPayments.put(y, memberFees.getOrDefault(y, null));
             }
@@ -92,6 +103,26 @@ public class AnnualFeeService {
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
             fee.addPayment(remaining);
         }
+        feeRepository.save(fee);
+    }
+
+    @Transactional
+    public void setPayment(Long memberId, int year, BigDecimal amount, BigDecimal amountDue) {
+        MemberAnnualFee fee = feeRepository.findByMemberIdAndYear(memberId, year)
+                .orElseGet(() -> {
+                    Member member = memberRepository.findById(memberId)
+                            .orElseThrow(() -> new RuntimeException("Member not found"));
+                    return MemberAnnualFee.builder()
+                            .member(member)
+                            .year(year)
+                            .amountDue(amountDue)
+                            .amountPaid(BigDecimal.ZERO)
+                            .build();
+                });
+
+        fee.setAmountDue(amountDue.max(amount));
+        fee.setAmountPaid(amount);
+        fee.updateStatus();
         feeRepository.save(fee);
     }
 
