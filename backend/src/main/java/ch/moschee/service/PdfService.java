@@ -19,7 +19,7 @@ public class PdfService {
     private static final float RECEIPT_WIDTH = 226f; // 80mm
     private static final float RECEIPT_HEIGHT = 500f;
 
-    public byte[] generateReceiptPdf(Receipt receipt, Member member, String createdByName) {
+    public byte[] generateReceiptPdf(Receipt receipt, Member member, String createdByName, int forYear) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             Document doc = new Document(new Rectangle(RECEIPT_WIDTH, RECEIPT_HEIGHT), 8, 8, 12, 12);
             PdfWriter.getInstance(doc, baos);
@@ -67,6 +67,7 @@ public class PdfService {
                 case OTHER -> receipt.getPurposeText() != null ? receipt.getPurposeText() : "Sonstiges";
             };
             addRow(table, "Zweck:", purposeDisplay, labelFont, valueFont);
+            addRow(table, "Jahr:", String.valueOf(forYear), labelFont, valueFont);
             addRow(table, "Zahlart:", receipt.getPaymentType().name().equals("CASH") ? "Bar" : "Bank", labelFont, valueFont);
 
             doc.add(table);
@@ -82,6 +83,14 @@ public class PdfService {
             doc.add(amountPara);
 
             doc.add(new Chunk(new LineSeparator(0.5f, 80, null, Element.ALIGN_CENTER, -2)));
+
+            if (createdByName != null && !createdByName.isBlank()) {
+                Font footerFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
+                Paragraph createdBy = new Paragraph("Erstellt von: " + createdByName, footerFont);
+                createdBy.setAlignment(Element.ALIGN_CENTER);
+                createdBy.setSpacingBefore(6);
+                doc.add(createdBy);
+            }
 
             doc.close();
             return baos.toByteArray();

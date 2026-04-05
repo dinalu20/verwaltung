@@ -37,7 +37,7 @@ public class PaymentService {
         int forYear = request.getForYear() != null ? request.getForYear() : LocalDate.now().getYear();
 
         Receipt receipt = receiptService.createReceipt(
-                member, request.getAmount(), paymentType, purpose, request.getPurposeText(), currentUsername);
+                member, request.getAmount(), paymentType, purpose, request.getPurposeText(), currentUsername, forYear);
 
         Payment payment = Payment.builder()
                 .member(member)

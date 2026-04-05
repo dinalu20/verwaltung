@@ -27,7 +27,7 @@ public class ReceiptService {
 
     @Transactional
     public Receipt createReceipt(Member member, BigDecimal amount, PaymentType paymentType,
-                                  PaymentPurpose purpose, String purposeText, String createdByName) {
+                                  PaymentPurpose purpose, String purposeText, String createdByName, int forYear) {
         String receiptNumber = generateReceiptNumber();
 
         Receipt receipt = Receipt.builder()
@@ -41,7 +41,7 @@ public class ReceiptService {
                 .printed(false)
                 .build();
 
-        byte[] pdf = pdfService.generateReceiptPdf(receipt, member, createdByName);
+        byte[] pdf = pdfService.generateReceiptPdf(receipt, member, createdByName, forYear);
         receipt.setPdfData(pdf);
 
         return receiptRepository.save(receipt);
