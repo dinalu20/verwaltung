@@ -60,6 +60,30 @@ export class ApiService {
     });
   }
 
+  downloadFile(url: string, filename: string, params?: any): void {
+    let httpParams = new HttpParams();
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== null && params[key] !== undefined) {
+          httpParams = httpParams.set(key, params[key]);
+        }
+      });
+    }
+    this.http.get(url, { params: httpParams, responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        link.click();
+        window.URL.revokeObjectURL(blobUrl);
+      },
+      error: () => {
+        console.error('File download failed');
+      }
+    });
+  }
+
   openPdf(url: string, params?: any): void {
     let httpParams = new HttpParams();
     if (params) {

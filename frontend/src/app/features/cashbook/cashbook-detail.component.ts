@@ -89,7 +89,13 @@ export class CashBookEntryDialogComponent {
       <h2>{{ cashBook.name }}</h2>
       <div>
         <button mat-raised-button (click)="downloadPdf()" style="margin-right:8px">
-          <mat-icon>picture_as_pdf</mat-icon> PDF Export
+          <mat-icon>picture_as_pdf</mat-icon> PDF
+        </button>
+        <button mat-raised-button (click)="downloadCsv()" style="margin-right:8px">
+          <mat-icon>description</mat-icon> CSV
+        </button>
+        <button mat-raised-button (click)="downloadExcel()" style="margin-right:8px">
+          <mat-icon>table_chart</mat-icon> Excel
         </button>
         <button mat-raised-button color="primary" (click)="addEntry()" style="margin-right:8px">
           <mat-icon>add</mat-icon> Neuer Eintrag
@@ -226,6 +232,20 @@ export class CashBookDetailComponent implements OnInit {
     this.api.downloadPdf(
       `/api/cashbooks/${this.cashBook.id}/pdf`,
       this.cashBook.name.replace(/[^a-zA-Z0-9äöüÄÖÜ\-_ ]/g, '') + '.pdf'
+    );
+  }
+
+  downloadCsv() {
+    this.api.downloadFile(
+      `/api/cashbooks/${this.cashBook.id}/csv`,
+      this.cashBook.name.replace(/[^a-zA-Z0-9äöüÄÖÜ\-_ ]/g, '') + '.csv'
+    );
+  }
+
+  downloadExcel() {
+    this.api.downloadFile(
+      `/api/cashbooks/${this.cashBook.id}/excel`,
+      this.cashBook.name.replace(/[^a-zA-Z0-9äöüÄÖÜ\-_ ]/g, '') + '.xlsx'
     );
   }
 

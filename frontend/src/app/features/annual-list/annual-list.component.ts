@@ -1,11 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
-import { MatTableModule } from '@angular/material/table';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import { NgFor, NgIf } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
@@ -13,7 +14,7 @@ import { ApiService } from '../../core/services/api.service';
 @Component({
   selector: 'app-annual-list',
   standalone: true,
-  imports: [FormsModule, MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, NgFor, NgIf],
+  imports: [FormsModule, MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSortModule, NgFor, NgIf],
   template: `
     <div class="page-header">
       <h2>Jahresliste (LISTA E ANTARËSISË)</h2>
@@ -28,17 +29,25 @@ import { ApiService } from '../../core/services/api.service';
         </mat-form-field>
         <button mat-raised-button (click)="load()"><mat-icon>refresh</mat-icon> Laden</button>
         <button mat-raised-button color="primary" (click)="downloadPdf()" style="margin-left:8px"><mat-icon>picture_as_pdf</mat-icon> PDF (A3)</button>
+        <button mat-raised-button (click)="downloadCsv()" style="margin-left:8px"><mat-icon>description</mat-icon> CSV</button>
+        <button mat-raised-button (click)="downloadExcel()" style="margin-left:8px"><mat-icon>table_chart</mat-icon> Excel</button>
       </div>
     </div>
 
     <mat-card>
       <mat-card-content style="overflow-x:auto">
-        <table mat-table [dataSource]="rows" *ngIf="rows.length > 0" class="full-width">
-          <ng-container matColumnDef="nr"><th mat-header-cell *matHeaderCellDef>NR.</th><td mat-cell *matCellDef="let r">{{ r.rowNumber }}</td></ng-container>
-          <ng-container matColumnDef="lastName"><th mat-header-cell *matHeaderCellDef>MBIEMRI</th><td mat-cell *matCellDef="let r">{{ r.lastName }}</td></ng-container>
-          <ng-container matColumnDef="firstName"><th mat-header-cell *matHeaderCellDef>EMRI</th><td mat-cell *matCellDef="let r">{{ r.firstName }}</td></ng-container>
+        <mat-form-field appearance="outline" class="full-width" style="margin-bottom:8px">
+          <mat-label>Suche (Name)</mat-label>
+          <input matInput [(ngModel)]="searchTerm" (ngModelChange)="applyFilter()" placeholder="Suchen...">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+
+        <table mat-table [dataSource]="dataSource" matSort *ngIf="dataSource.data.length > 0" class="full-width">
+          <ng-container matColumnDef="nr"><th mat-header-cell *matHeaderCellDef mat-sort-header>NR.</th><td mat-cell *matCellDef="let r">{{ r.rowNumber }}</td></ng-container>
+          <ng-container matColumnDef="lastName"><th mat-header-cell *matHeaderCellDef mat-sort-header>MBIEMRI</th><td mat-cell *matCellDef="let r">{{ r.lastName }}</td></ng-container>
+          <ng-container matColumnDef="firstName"><th mat-header-cell *matHeaderCellDef mat-sort-header>EMRI</th><td mat-cell *matCellDef="let r">{{ r.firstName }}</td></ng-container>
           <ng-container *ngFor="let year of years" [matColumnDef]="'y'+year">
-            <th mat-header-cell *matHeaderCellDef>{{ year }}</th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ year }}</th>
             <td mat-cell *matCellDef="let r" [class.status-paid]="r.yearlyPayments[year] >= 300"
                 [class.status-partial]="r.yearlyPayments[year] > 0 && r.yearlyPayments[year] < 300"
                 style="text-align:center">
@@ -49,27 +58,53 @@ import { ApiService } from '../../core/services/api.service';
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="goToMember(row)" style="cursor:pointer"></tr>
         </table>
-        <p *ngIf="rows.length === 0">Keine Daten vorhanden.</p>
+        <p *ngIf="dataSource.data.length === 0">Keine Daten vorhanden.</p>
       </mat-card-content>
     </mat-card>
   `
 })
-export class AnnualListComponent implements OnInit {
+export class AnnualListComponent implements OnInit, AfterViewInit {
   fromYear = 2022;
   toYear = 2026;
-  rows: any[] = [];
   years: number[] = [];
   displayedColumns: string[] = [];
+  searchTerm = '';
+  dataSource = new MatTableDataSource<any>([]);
+
+  @ViewChild(MatSort) sort!: MatSort;
 
   constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit() { this.load(); }
 
+  ngAfterViewInit() {
+    this.dataSource.sort = this.sort;
+  }
+
   load() {
     this.years = [];
     for (let y = this.fromYear; y <= this.toYear; y++) this.years.push(y);
     this.displayedColumns = ['nr', 'lastName', 'firstName', ...this.years.map(y => 'y' + y)];
-    this.api.get<any[]>('/api/annual-list', { fromYear: this.fromYear, toYear: this.toYear }).subscribe(d => this.rows = d);
+    this.api.get<any[]>('/api/annual-list', { fromYear: this.fromYear, toYear: this.toYear }).subscribe(d => {
+      this.dataSource.data = d;
+      this.dataSource.sort = this.sort;
+      this.dataSource.sortingDataAccessor = (item: any, property: string) => {
+        if (property.startsWith('y')) {
+          const year = parseInt(property.substring(1));
+          return item.yearlyPayments[year] || 0;
+        }
+        return item[property] ?? '';
+      };
+      this.dataSource.filterPredicate = (data: any, filter: string) => {
+        const search = filter.toLowerCase();
+        return (data.lastName?.toLowerCase().includes(search) || false)
+            || (data.firstName?.toLowerCase().includes(search) || false);
+      };
+    });
+  }
+
+  applyFilter() {
+    this.dataSource.filter = this.searchTerm.trim();
   }
 
   goToMember(row: any) {
@@ -80,6 +115,22 @@ export class AnnualListComponent implements OnInit {
     this.api.downloadPdf(
       '/api/annual-list/pdf',
       `Jahresliste_${this.fromYear}-${this.toYear}.pdf`,
+      { fromYear: this.fromYear, toYear: this.toYear }
+    );
+  }
+
+  downloadCsv() {
+    this.api.downloadFile(
+      '/api/annual-list/csv',
+      `Jahresliste_${this.fromYear}-${this.toYear}.csv`,
+      { fromYear: this.fromYear, toYear: this.toYear }
+    );
+  }
+
+  downloadExcel() {
+    this.api.downloadFile(
+      '/api/annual-list/excel',
+      `Jahresliste_${this.fromYear}-${this.toYear}.xlsx`,
       { fromYear: this.fromYear, toYear: this.toYear }
     );
   }

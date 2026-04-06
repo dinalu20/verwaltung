@@ -1,9 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { NgIf } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
@@ -13,21 +19,67 @@ import { AuthService } from '../../core/services/auth.service';
 @Component({
   selector: 'app-receipt-list',
   standalone: true,
-  imports: [MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatPaginatorModule, NgIf, RouterLink],
+  imports: [FormsModule, MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatPaginatorModule,
+    MatSortModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatTooltipModule, NgIf, RouterLink],
   template: `
     <div class="page-header">
       <h2>Quittungen</h2>
     </div>
 
+    <mat-card style="margin-bottom:16px">
+      <mat-card-content>
+        <div class="filter-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Suche (Name / Nr.)</mat-label>
+            <input matInput [(ngModel)]="search" (keyup.enter)="applyFilters()">
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Datum von</mat-label>
+            <input matInput type="date" [(ngModel)]="dateFrom">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Datum bis</mat-label>
+            <input matInput type="date" [(ngModel)]="dateTo">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Zweck</mat-label>
+            <mat-select [(ngModel)]="purpose">
+              <mat-option value="">Alle</mat-option>
+              <mat-option value="MEMBERSHIP_FEE">Mitgliedsbeitrag</mat-option>
+              <mat-option value="ZAKAT">Zakat</mat-option>
+              <mat-option value="FITRA">Fitra</mat-option>
+              <mat-option value="DONATION">Spende</mat-option>
+              <mat-option value="OTHER">Sonstiges</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Zahlungsart</mat-label>
+            <mat-select [(ngModel)]="paymentType">
+              <mat-option value="">Alle</mat-option>
+              <mat-option value="CASH">Bar</mat-option>
+              <mat-option value="BANK">Bank</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="applyFilters()" style="height:56px">
+            <mat-icon>filter_list</mat-icon> Filtern
+          </button>
+          <button mat-button (click)="resetFilters()" style="height:56px">
+            <mat-icon>clear</mat-icon> Zurücksetzen
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
     <mat-card>
       <mat-card-content>
-        <table mat-table [dataSource]="receipts" *ngIf="receipts.length > 0" class="full-width">
+        <table mat-table [dataSource]="receipts" matSort (matSortChange)="onSort($event)" *ngIf="receipts.length > 0" class="full-width">
           <ng-container matColumnDef="receiptNumber">
-            <th mat-header-cell *matHeaderCellDef>Nr.</th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="receiptNumber">Nr.</th>
             <td mat-cell *matCellDef="let r"><strong>{{ r.receiptNumber }}</strong></td>
           </ng-container>
           <ng-container matColumnDef="date">
-            <th mat-header-cell *matHeaderCellDef>Datum</th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="receiptDate">Datum</th>
             <td mat-cell *matCellDef="let r">{{ r.receiptDate }}</td>
           </ng-container>
           <ng-container matColumnDef="member">
@@ -38,7 +90,7 @@ import { AuthService } from '../../core/services/auth.service';
             </td>
           </ng-container>
           <ng-container matColumnDef="amount">
-            <th mat-header-cell *matHeaderCellDef>Betrag</th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="amount">Betrag</th>
             <td mat-cell *matCellDef="let r">CHF {{ r.amount }}</td>
           </ng-container>
           <ng-container matColumnDef="purpose">
@@ -81,6 +133,8 @@ import { AuthService } from '../../core/services/auth.service';
   styles: [`
     .full-width { width: 100%; }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .filter-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+    .filter-row mat-form-field { flex: 1; min-width: 150px; }
   `]
 })
 export class ReceiptListComponent implements OnInit {
@@ -90,6 +144,14 @@ export class ReceiptListComponent implements OnInit {
   pageSize = 50;
   totalElements = 0;
   canEdit = false;
+
+  search = '';
+  dateFrom = '';
+  dateTo = '';
+  purpose = '';
+  paymentType = '';
+  sortField = 'createdAt';
+  sortDirection = 'desc';
 
   constructor(
     private api: ApiService,
@@ -104,10 +166,45 @@ export class ReceiptListComponent implements OnInit {
   }
 
   load() {
-    this.api.get<any>('/api/receipts', { page: this.page, size: this.pageSize, sort: 'createdAt,desc' }).subscribe(res => {
+    const params: any = {
+      page: this.page,
+      size: this.pageSize,
+      sort: `${this.sortField},${this.sortDirection}`
+    };
+    if (this.search) params.search = this.search;
+    if (this.dateFrom) params.dateFrom = this.dateFrom;
+    if (this.dateTo) params.dateTo = this.dateTo;
+    if (this.purpose) params.purpose = this.purpose;
+    if (this.paymentType) params.paymentType = this.paymentType;
+
+    this.api.get<any>('/api/receipts', params).subscribe(res => {
       this.receipts = res.content || [];
       this.totalElements = res.totalElements || 0;
     });
+  }
+
+  applyFilters() {
+    this.page = 0;
+    this.load();
+  }
+
+  resetFilters() {
+    this.search = '';
+    this.dateFrom = '';
+    this.dateTo = '';
+    this.purpose = '';
+    this.paymentType = '';
+    this.page = 0;
+    this.sortField = 'createdAt';
+    this.sortDirection = 'desc';
+    this.load();
+  }
+
+  onSort(sort: Sort) {
+    this.sortField = sort.active || 'createdAt';
+    this.sortDirection = sort.direction || 'desc';
+    this.page = 0;
+    this.load();
   }
 
   onPage(event: PageEvent) {

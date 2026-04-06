@@ -62,6 +62,15 @@ public class ReceiptService {
         return receiptRepository.findByMemberIdWithMember(memberId, pageable).map(this::toDto);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ReceiptDto> searchReceipts(String search, LocalDate dateFrom, LocalDate dateTo,
+                                           String purpose, String paymentType, Pageable pageable) {
+        PaymentPurpose purposeEnum = (purpose != null && !purpose.isBlank()) ? PaymentPurpose.valueOf(purpose) : null;
+        PaymentType typeEnum = (paymentType != null && !paymentType.isBlank()) ? PaymentType.valueOf(paymentType) : null;
+        String searchParam = (search != null && !search.isBlank()) ? search : null;
+        return receiptRepository.searchReceipts(searchParam, dateFrom, dateTo, purposeEnum, typeEnum, pageable).map(this::toDto);
+    }
+
     @Transactional
     public void markPrinted(Long id) {
         Receipt receipt = findById(id);
