@@ -18,10 +18,10 @@ import { NotificationService } from '../../core/services/notification.service';
       <h2>Bankimport</h2>
     </div>
 
-    <mat-card style="margin-bottom:24px">
+    <mat-card class="upload-card">
       <mat-card-content>
         <div class="upload-area" (dragover)="$event.preventDefault()" (drop)="onDrop($event)">
-          <mat-icon style="font-size:48px;width:48px;height:48px;color:#999">account_balance</mat-icon>
+          <mat-icon class="upload-icon">account_balance</mat-icon>
           <p>Bank CSV/Excel hierher ziehen oder</p>
           <button mat-raised-button color="primary" (click)="fileInput.click()">Datei auswählen</button>
           <input #fileInput type="file" accept=".csv,.xlsx,.xls" (change)="onFileSelected($event)" hidden>
@@ -33,24 +33,26 @@ import { NotificationService } from '../../core/services/notification.service';
     <mat-card *ngIf="imports.length > 0">
       <mat-card-content>
         <h3>Bisherige Imports</h3>
-        <table mat-table [dataSource]="imports" class="full-width">
-          <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Datum</th><td mat-cell *matCellDef="let i">{{ i.importDate }}</td></ng-container>
-          <ng-container matColumnDef="file"><th mat-header-cell *matHeaderCellDef>Datei</th><td mat-cell *matCellDef="let i">{{ i.fileName }}</td></ng-container>
-          <ng-container matColumnDef="total"><th mat-header-cell *matHeaderCellDef>Zeilen</th><td mat-cell *matCellDef="let i">{{ i.totalLines }}</td></ng-container>
-          <ng-container matColumnDef="pending"><th mat-header-cell *matHeaderCellDef>Offen</th><td mat-cell *matCellDef="let i">{{ i.pendingLines }}</td></ng-container>
-          <ng-container matColumnDef="confirmed"><th mat-header-cell *matHeaderCellDef>Bestätigt</th><td mat-cell *matCellDef="let i">{{ i.confirmedLines }}</td></ng-container>
-          <ng-container matColumnDef="action"><th mat-header-cell *matHeaderCellDef></th><td mat-cell *matCellDef="let i">
-            <button mat-button color="primary" (click)="openImport(i)">Details</button>
-          </td></ng-container>
-          <tr mat-header-row *matHeaderRowDef="importCols"></tr>
-          <tr mat-row *matRowDef="let row; columns: importCols;"></tr>
-        </table>
+        <div class="table-responsive">
+          <table mat-table [dataSource]="imports" class="full-width">
+            <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Datum</th><td mat-cell *matCellDef="let i">{{ i.importDate }}</td></ng-container>
+            <ng-container matColumnDef="file"><th mat-header-cell *matHeaderCellDef>Datei</th><td mat-cell *matCellDef="let i">{{ i.fileName }}</td></ng-container>
+            <ng-container matColumnDef="total"><th mat-header-cell *matHeaderCellDef>Zeilen</th><td mat-cell *matCellDef="let i">{{ i.totalLines }}</td></ng-container>
+            <ng-container matColumnDef="pending"><th mat-header-cell *matHeaderCellDef>Offen</th><td mat-cell *matCellDef="let i">{{ i.pendingLines }}</td></ng-container>
+            <ng-container matColumnDef="confirmed"><th mat-header-cell *matHeaderCellDef>Bestätigt</th><td mat-cell *matCellDef="let i">{{ i.confirmedLines }}</td></ng-container>
+            <ng-container matColumnDef="action"><th mat-header-cell *matHeaderCellDef></th><td mat-cell *matCellDef="let i">
+              <button mat-button color="primary" (click)="openImport(i)">Details</button>
+            </td></ng-container>
+            <tr mat-header-row *matHeaderRowDef="importCols"></tr>
+            <tr mat-row *matRowDef="let row; columns: importCols;"></tr>
+          </table>
+        </div>
       </mat-card-content>
     </mat-card>
   `,
   styles: [`
-    .upload-area { border: 2px dashed #ccc; border-radius: 8px; padding: 40px; text-align: center; background: #fafafa; }
-    .upload-area:hover { border-color: #1976d2; background: #f0f7ff; }
+    .upload-card { margin-bottom: 24px; }
+    .upload-icon { font-size: 48px; width: 48px; height: 48px; color: #999; }
   `]
 })
 export class BankImportComponent implements OnInit {

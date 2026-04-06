@@ -17,51 +17,55 @@ import { NotificationService } from '../../core/services/notification.service';
     <mat-card>
       <mat-card-content>
         <div class="upload-area" (dragover)="$event.preventDefault()" (drop)="onDrop($event)">
-          <mat-icon style="font-size:48px;width:48px;height:48px;color:#999">cloud_upload</mat-icon>
+          <mat-icon class="upload-icon">cloud_upload</mat-icon>
           <p>CSV-Datei hierher ziehen oder</p>
           <button mat-raised-button color="primary" (click)="fileInput.click()">Datei auswählen</button>
           <input #fileInput type="file" accept=".csv" (change)="onFileSelected($event)" hidden>
-          <p *ngIf="selectedFile" style="margin-top:8px"><strong>{{ selectedFile.name }}</strong></p>
+          <p *ngIf="selectedFile" class="file-name"><strong>{{ selectedFile.name }}</strong></p>
         </div>
 
-        <mat-progress-bar *ngIf="loading" mode="indeterminate" style="margin:16px 0"></mat-progress-bar>
+        <mat-progress-bar *ngIf="loading" mode="indeterminate" class="progress"></mat-progress-bar>
 
         <div *ngIf="preview">
           <h3>Vorschau: {{ preview.totalRows }} Zeilen ({{ preview.imported }} neu, {{ preview.updated }} aktualisiert, {{ preview.skipped }} übersprungen)</h3>
 
-          <div *ngIf="preview.errors.length > 0" style="color:red;margin:8px 0">
+          <div *ngIf="preview.errors.length > 0" class="error-list">
             <p *ngFor="let e of preview.errors">{{ e }}</p>
           </div>
 
-          <table mat-table [dataSource]="preview.preview" style="margin:16px 0">
-            <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">
-              <span class="status-badge" [class.status-paid]="r.status==='NEW'" [class.status-partial]="r.status==='UPDATE'">{{ r.status }}</span>
-            </td></ng-container>
-            <ng-container matColumnDef="lastName"><th mat-header-cell *matHeaderCellDef>Nachname</th><td mat-cell *matCellDef="let r">{{ r.lastName }}</td></ng-container>
-            <ng-container matColumnDef="firstName"><th mat-header-cell *matHeaderCellDef>Vorname</th><td mat-cell *matCellDef="let r">{{ r.firstName }}</td></ng-container>
-            <ng-container matColumnDef="city"><th mat-header-cell *matHeaderCellDef>Ort</th><td mat-cell *matCellDef="let r">{{ r.city }}</td></ng-container>
-            <tr mat-header-row *matHeaderRowDef="['status','lastName','firstName','city']"></tr>
-            <tr mat-row *matRowDef="let row; columns: ['status','lastName','firstName','city']"></tr>
-          </table>
+          <div class="table-responsive">
+            <table mat-table [dataSource]="preview.preview" class="preview-table">
+              <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let r">
+                <span class="status-badge" [class.status-paid]="r.status==='NEW'" [class.status-partial]="r.status==='UPDATE'">{{ r.status }}</span>
+              </td></ng-container>
+              <ng-container matColumnDef="lastName"><th mat-header-cell *matHeaderCellDef>Nachname</th><td mat-cell *matCellDef="let r">{{ r.lastName }}</td></ng-container>
+              <ng-container matColumnDef="firstName"><th mat-header-cell *matHeaderCellDef>Vorname</th><td mat-cell *matCellDef="let r">{{ r.firstName }}</td></ng-container>
+              <ng-container matColumnDef="city"><th mat-header-cell *matHeaderCellDef>Ort</th><td mat-cell *matCellDef="let r">{{ r.city }}</td></ng-container>
+              <tr mat-header-row *matHeaderRowDef="['status','lastName','firstName','city']"></tr>
+              <tr mat-row *matRowDef="let row; columns: ['status','lastName','firstName','city']"></tr>
+            </table>
+          </div>
 
-          <button mat-raised-button color="primary" (click)="confirmImport()" [disabled]="importing">
+          <button mat-raised-button color="primary" (click)="confirmImport()" [disabled]="importing" class="confirm-btn">
             <mat-icon>check</mat-icon> Import bestätigen
           </button>
         </div>
 
         <div *ngIf="result">
-          <h3 style="color:#4caf50">Import abgeschlossen!</h3>
+          <h3 class="success-text">Import abgeschlossen!</h3>
           <p>{{ result.imported }} importiert, {{ result.updated }} aktualisiert, {{ result.skipped }} übersprungen</p>
         </div>
       </mat-card-content>
     </mat-card>
   `,
   styles: [`
-    .upload-area {
-      border: 2px dashed #ccc; border-radius: 8px; padding: 40px;
-      text-align: center; margin-bottom: 16px; background: #fafafa;
-    }
-    .upload-area:hover { border-color: #1976d2; background: #f0f7ff; }
+    .upload-icon { font-size: 48px; width: 48px; height: 48px; color: #999; }
+    .file-name { margin-top: 8px; }
+    .progress { margin: 16px 0; }
+    .error-list { color: #e53935; margin: 8px 0; }
+    .preview-table { margin: 16px 0; }
+    .confirm-btn { margin-top: 8px; }
+    .success-text { color: #2e7d32; }
   `]
 })
 export class MemberImportComponent {

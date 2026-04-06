@@ -18,7 +18,7 @@ import { NotificationService } from '../../core/services/notification.service';
   imports: [FormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatIconModule, MatAutocompleteModule, MatCheckboxModule, NgIf, NgFor],
   template: `
     <h2>Zahlung erfassen / Quittung erstellen</h2>
-    <mat-card style="max-width:700px">
+    <mat-card class="payment-card">
       <mat-card-content>
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Mitglied suchen (optional)</mat-label>
@@ -29,9 +29,9 @@ import { NotificationService } from '../../core/services/notification.service';
             </mat-option>
           </mat-autocomplete>
         </mat-form-field>
-        <p *ngIf="selectedMember" style="margin:-8px 0 12px;color:#1976d2">
+        <p *ngIf="selectedMember" class="selected-member">
           Gewählt: <strong>{{ selectedMember.lastName }} {{ selectedMember.firstName }}</strong>
-          <button mat-icon-button (click)="clearMember()" style="margin-left:4px"><mat-icon>close</mat-icon></button>
+          <button mat-icon-button (click)="clearMember()"><mat-icon>close</mat-icon></button>
         </p>
 
         <div class="form-row">
@@ -70,11 +70,11 @@ import { NotificationService } from '../../core/services/notification.service';
           <input matInput [(ngModel)]="payment.purposeText">
         </mat-form-field>
 
-        <mat-checkbox [(ngModel)]="payment.addToCashBook" style="margin-bottom:16px">
+        <mat-checkbox [(ngModel)]="payment.addToCashBook" class="cashbook-check">
           Ins Kassenbuch übernehmen
         </mat-checkbox>
 
-        <mat-form-field appearance="outline" class="full-width" *ngIf="payment.addToCashBook && openCashBooks.length > 0" style="margin-top:4px">
+        <mat-form-field appearance="outline" class="full-width" *ngIf="payment.addToCashBook && openCashBooks.length > 0">
           <mat-label>Kassenbuch</mat-label>
           <mat-select [(ngModel)]="payment.cashBookId">
             <mat-option *ngFor="let cb of openCashBooks" [value]="cb.id">
@@ -84,27 +84,55 @@ import { NotificationService } from '../../core/services/notification.service';
         </mat-form-field>
 
         <div>
-          <button mat-raised-button color="primary" (click)="submit()" [disabled]="saving || !payment.amount || !payment.purpose">
+          <button mat-raised-button color="primary" (click)="submit()" [disabled]="saving || !payment.amount || !payment.purpose" class="submit-btn">
             <mat-icon>receipt</mat-icon> Zahlung erfassen & Quittung erstellen
           </button>
         </div>
 
-        <mat-card *ngIf="lastPayment" style="margin-top:24px;background:#e8f5e9">
+        <mat-card *ngIf="lastPayment" class="success-card">
           <mat-card-content>
-            <h3 style="color:#2e7d32;margin-top:0">Zahlung erfasst!</h3>
+            <h3 class="success-title">Zahlung erfasst!</h3>
             <p>Quittung Nr: <strong>{{ lastPayment.receiptNumber }}</strong></p>
             <p>Betrag: <strong>CHF {{ lastPayment.amount }}</strong></p>
-            <button mat-raised-button (click)="printReceipt(lastPayment.receiptId)" style="margin-right:8px">
-              <mat-icon>print</mat-icon> Quittung drucken
-            </button>
-            <button mat-raised-button color="accent" (click)="downloadReceipt(lastPayment.receiptId, lastPayment.receiptNumber)">
-              <mat-icon>download</mat-icon> PDF herunterladen
-            </button>
+            <div class="success-actions">
+              <button mat-raised-button (click)="printReceipt(lastPayment.receiptId)">
+                <mat-icon>print</mat-icon> Quittung drucken
+              </button>
+              <button mat-raised-button color="accent" (click)="downloadReceipt(lastPayment.receiptId, lastPayment.receiptNumber)">
+                <mat-icon>download</mat-icon> PDF herunterladen
+              </button>
+            </div>
           </mat-card-content>
         </mat-card>
       </mat-card-content>
     </mat-card>
-  `
+  `,
+  styles: [`
+    .payment-card {
+      max-width: 700px;
+      border-radius: var(--card-radius, 12px) !important;
+    }
+    .selected-member {
+      margin: -8px 0 12px;
+      color: var(--color-primary, #00796b);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .cashbook-check { display: block; margin-bottom: 16px; }
+    .submit-btn { margin-top: 8px; }
+    .success-card {
+      margin-top: 24px;
+      background: #e8f5e9 !important;
+      border-radius: var(--card-radius, 12px) !important;
+    }
+    .success-title { color: #2e7d32; margin-top: 0; }
+    .success-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    @media (max-width: 767px) {
+      .payment-card { max-width: 100%; }
+    }
+  `]
 })
 export class PaymentFormComponent implements OnInit {
   payment: any = { amount: 300, paymentType: 'CASH', purpose: 'MEMBERSHIP_FEE', addToCashBook: true, forYear: new Date().getFullYear(), cashBookId: null };

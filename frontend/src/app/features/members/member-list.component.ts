@@ -11,7 +11,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { Subject } from 'rxjs';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -31,11 +32,11 @@ interface Member {
   template: `
     <div class="page-header">
       <h2>Mitglieder</h2>
-      <div>
-        <button mat-raised-button (click)="exportCsv()" style="margin-right:8px">
+      <div class="action-buttons">
+        <button mat-raised-button (click)="exportCsv()">
           <mat-icon>description</mat-icon> CSV
         </button>
-        <button mat-raised-button (click)="exportExcel()" style="margin-right:8px">
+        <button mat-raised-button (click)="exportExcel()">
           <mat-icon>table_chart</mat-icon> Excel
         </button>
         <button mat-raised-button color="primary" (click)="openCreateDialog()">
@@ -47,12 +48,12 @@ interface Member {
     <mat-card>
       <mat-card-content>
         <div class="filter-row">
-          <mat-form-field appearance="outline" style="flex:2">
+          <mat-form-field appearance="outline" class="search-field">
             <mat-label>Suche (Name, Ort, PLZ)</mat-label>
             <input matInput [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange($event)" (keyup.enter)="search()" placeholder="Suchen...">
             <mat-icon matSuffix>search</mat-icon>
           </mat-form-field>
-          <mat-form-field appearance="outline" style="flex:1">
+          <mat-form-field appearance="outline" class="status-field">
             <mat-label>Status</mat-label>
             <mat-select [(ngModel)]="statusFilter" (selectionChange)="onStatusChange()">
               <mat-option value="">Aktiv</mat-option>
@@ -62,35 +63,37 @@ interface Member {
           </mat-form-field>
         </div>
 
-        <table mat-table [dataSource]="members" matSort (matSortChange)="onSort($event)" class="full-width">
-          <ng-container matColumnDef="lastName">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Nachname</th>
-            <td mat-cell *matCellDef="let m">{{ m.lastName }}</td>
-          </ng-container>
-          <ng-container matColumnDef="firstName">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Vorname</th>
-            <td mat-cell *matCellDef="let m">{{ m.firstName }}</td>
-          </ng-container>
-          <ng-container matColumnDef="city">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="city">Ort</th>
-            <td mat-cell *matCellDef="let m">{{ m.zipCode }} {{ m.city }}</td>
-          </ng-container>
-          <ng-container matColumnDef="phone">
-            <th mat-header-cell *matHeaderCellDef>Telefon</th>
-            <td mat-cell *matCellDef="let m">{{ m.phoneMobile || m.phonePrivate || '-' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
-            <td mat-cell *matCellDef="let m">
-              <span class="status-badge" [class.status-paid]="m.status === 'ACTIVE'" [class.status-open]="m.status === 'INACTIVE'">
-                {{ m.status === 'ACTIVE' ? 'Aktiv' : 'Inaktiv' }}
-              </span>
-            </td>
-          </ng-container>
+        <div class="table-responsive">
+          <table mat-table [dataSource]="members" matSort (matSortChange)="onSort($event)" class="full-width">
+            <ng-container matColumnDef="lastName">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Nachname</th>
+              <td mat-cell *matCellDef="let m">{{ m.lastName }}</td>
+            </ng-container>
+            <ng-container matColumnDef="firstName">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Vorname</th>
+              <td mat-cell *matCellDef="let m">{{ m.firstName }}</td>
+            </ng-container>
+            <ng-container matColumnDef="city">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="city">Ort</th>
+              <td mat-cell *matCellDef="let m">{{ m.zipCode }} {{ m.city }}</td>
+            </ng-container>
+            <ng-container matColumnDef="phone">
+              <th mat-header-cell *matHeaderCellDef>Telefon</th>
+              <td mat-cell *matCellDef="let m">{{ m.phoneMobile || m.phonePrivate || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+              <td mat-cell *matCellDef="let m">
+                <span class="status-badge" [class.status-paid]="m.status === 'ACTIVE'" [class.status-open]="m.status === 'INACTIVE'">
+                  {{ m.status === 'ACTIVE' ? 'Aktiv' : 'Inaktiv' }}
+                </span>
+              </td>
+            </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="openDetail(row)"></tr>
-        </table>
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="openDetail(row)"></tr>
+          </table>
+        </div>
         <mat-paginator [length]="totalElements" [pageSize]="pageSize" [pageIndex]="page"
           [pageSizeOptions]="[25, 50, 100]" (page)="onPage($event)" showFirstLastButtons>
         </mat-paginator>
@@ -98,7 +101,18 @@ interface Member {
     </mat-card>
   `,
   styles: [`
-    .filter-row { display: flex; gap: 12px; align-items: flex-start; }
+    .filter-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .search-field { flex: 2; }
+    .status-field { flex: 1; min-width: 120px; }
+
+    @media (max-width: 767px) {
+      .filter-row { flex-direction: column; gap: 0; }
+      .search-field, .status-field { width: 100%; }
+    }
   `]
 })
 export class MemberListComponent implements OnInit, OnDestroy {
@@ -112,23 +126,41 @@ export class MemberListComponent implements OnInit, OnDestroy {
   sortField = 'lastName';
   sortDirection = 'asc';
   private searchSubject = new Subject<string>();
+  private subs: Subscription[] = [];
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
-  constructor(private api: ApiService, private router: Router, private dialog: MatDialog, private notify: NotificationService) {}
+  constructor(
+    private api: ApiService,
+    private router: Router,
+    private dialog: MatDialog,
+    private notify: NotificationService,
+    private breakpointObserver: BreakpointObserver
+  ) {}
 
   ngOnInit() {
-    this.searchSubject.pipe(
-      debounceTime(300),
-      distinctUntilChanged()
-    ).subscribe(() => {
-      this.page = 0;
-      this.search();
-    });
+    this.subs.push(
+      this.searchSubject.pipe(
+        debounceTime(300),
+        distinctUntilChanged()
+      ).subscribe(() => {
+        this.page = 0;
+        this.search();
+      })
+    );
+
+    this.subs.push(
+      this.breakpointObserver.observe('(max-width: 767px)').subscribe(result => {
+        this.displayedColumns = result.matches
+          ? ['lastName', 'firstName', 'status']
+          : ['lastName', 'firstName', 'city', 'phone', 'status'];
+      })
+    );
+
     this.search();
   }
 
-  ngOnDestroy() { this.searchSubject.complete(); }
+  ngOnDestroy() { this.searchSubject.complete(); this.subs.forEach(s => s.unsubscribe()); }
 
   onSearchChange(value: string) { this.searchSubject.next(value); }
 
@@ -188,7 +220,12 @@ export class MemberListComponent implements OnInit, OnDestroy {
   }
 
   openCreateDialog() {
-    const dialogRef = this.dialog.open(MemberFormDialogComponent, { width: '600px', data: {} });
+    const dialogRef = this.dialog.open(MemberFormDialogComponent, {
+      width: this.breakpointObserver.isMatched('(max-width: 767px)') ? '100vw' : '600px',
+      maxWidth: this.breakpointObserver.isMatched('(max-width: 767px)') ? '100vw' : '600px',
+      height: this.breakpointObserver.isMatched('(max-width: 767px)') ? '100vh' : 'auto',
+      data: {}
+    });
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.api.post('/api/members', result).subscribe(() => {

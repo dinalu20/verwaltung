@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatDialog, MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NgIf, NgFor, DecimalPipe } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 
@@ -87,17 +88,17 @@ export class CashBookEntryDialogComponent {
   template: `
     <div class="page-header" *ngIf="cashBook">
       <h2>{{ cashBook.name }}</h2>
-      <div>
-        <button mat-raised-button (click)="downloadPdf()" style="margin-right:8px">
+      <div class="action-buttons">
+        <button mat-raised-button (click)="downloadPdf()">
           <mat-icon>picture_as_pdf</mat-icon> PDF
         </button>
-        <button mat-raised-button (click)="downloadCsv()" style="margin-right:8px">
+        <button mat-raised-button (click)="downloadCsv()">
           <mat-icon>description</mat-icon> CSV
         </button>
-        <button mat-raised-button (click)="downloadExcel()" style="margin-right:8px">
+        <button mat-raised-button (click)="downloadExcel()">
           <mat-icon>table_chart</mat-icon> Excel
         </button>
-        <button mat-raised-button color="primary" (click)="addEntry()" style="margin-right:8px">
+        <button mat-raised-button color="primary" (click)="addEntry()">
           <mat-icon>add</mat-icon> Neuer Eintrag
         </button>
         <button mat-raised-button color="warn" (click)="deleteCashBook()">
@@ -106,56 +107,113 @@ export class CashBookEntryDialogComponent {
       </div>
     </div>
 
-    <mat-card *ngIf="cashBook" style="margin-bottom:16px">
+    <mat-card *ngIf="cashBook" class="summary-card">
       <mat-card-content>
-        <div style="display:flex;gap:32px;font-size:16px;flex-wrap:wrap">
-          <span *ngIf="!editingBalance" style="cursor:pointer" (click)="startEditBalance()" matTooltip="Klicken zum Bearbeiten">
-            Eröffnung: <strong>CHF {{ cashBook.openingBalance | number:'1.2-2' }}</strong> <mat-icon style="font-size:14px;vertical-align:middle;color:#999">edit</mat-icon>
-          </span>
-          <span *ngIf="editingBalance" class="edit-balance">
-            Eröffnung: CHF <input type="number" [(ngModel)]="editBalance" step="0.01" class="balance-input">
-            <button mat-icon-button color="primary" (click)="saveBalance()" matTooltip="Speichern"><mat-icon>check</mat-icon></button>
-            <button mat-icon-button (click)="cancelEditBalance()" matTooltip="Abbrechen"><mat-icon>close</mat-icon></button>
-          </span>
-          <span style="color:#4caf50">Eingänge: <strong>CHF {{ cashBook.totalIn | number:'1.2-2' }}</strong></span>
-          <span style="color:#f44336">Ausgänge: <strong>CHF {{ cashBook.totalOut | number:'1.2-2' }}</strong></span>
-          <span>Saldo: <strong>CHF {{ cashBook.currentBalance | number:'1.2-2' }}</strong></span>
+        <div class="summary-row">
+          <div class="summary-item" *ngIf="!editingBalance" (click)="startEditBalance()" matTooltip="Klicken zum Bearbeiten">
+            <span class="summary-label">Eröffnung</span>
+            <span class="summary-value">CHF {{ cashBook.openingBalance | number:'1.2-2' }} <mat-icon class="edit-hint">edit</mat-icon></span>
+          </div>
+          <div class="summary-item" *ngIf="editingBalance">
+            <span class="summary-label">Eröffnung</span>
+            <span class="edit-balance">
+              CHF <input type="number" [(ngModel)]="editBalance" step="0.01" class="balance-input">
+              <button mat-icon-button color="primary" (click)="saveBalance()"><mat-icon>check</mat-icon></button>
+              <button mat-icon-button (click)="cancelEditBalance()"><mat-icon>close</mat-icon></button>
+            </span>
+          </div>
+          <div class="summary-item in">
+            <span class="summary-label">Eingänge</span>
+            <span class="summary-value">CHF {{ cashBook.totalIn | number:'1.2-2' }}</span>
+          </div>
+          <div class="summary-item out">
+            <span class="summary-label">Ausgänge</span>
+            <span class="summary-value">CHF {{ cashBook.totalOut | number:'1.2-2' }}</span>
+          </div>
+          <div class="summary-item total">
+            <span class="summary-label">Saldo</span>
+            <span class="summary-value">CHF {{ cashBook.currentBalance | number:'1.2-2' }}</span>
+          </div>
         </div>
       </mat-card-content>
     </mat-card>
 
     <mat-card *ngIf="cashBook">
       <mat-card-content>
-        <table mat-table [dataSource]="cashBook.entries || []" class="full-width">
-          <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Datum</th><td mat-cell *matCellDef="let e">{{ e.entryDate }}</td></ng-container>
-          <ng-container matColumnDef="receipt"><th mat-header-cell *matHeaderCellDef>Beleg Nr.</th><td mat-cell *matCellDef="let e">{{ e.receiptNumber || '-' }}</td></ng-container>
-          <ng-container matColumnDef="description"><th mat-header-cell *matHeaderCellDef>Beschreibung</th><td mat-cell *matCellDef="let e">{{ e.description }}</td></ng-container>
-          <ng-container matColumnDef="amountIn"><th mat-header-cell *matHeaderCellDef>Eingang</th><td mat-cell *matCellDef="let e" style="color:#4caf50">{{ e.amountIn > 0 ? ('CHF ' + (e.amountIn | number:'1.2-2')) : '' }}</td></ng-container>
-          <ng-container matColumnDef="amountOut"><th mat-header-cell *matHeaderCellDef>Ausgang</th><td mat-cell *matCellDef="let e" style="color:#f44336">{{ e.amountOut > 0 ? ('CHF ' + (e.amountOut | number:'1.2-2')) : '' }}</td></ng-container>
-          <ng-container matColumnDef="balance"><th mat-header-cell *matHeaderCellDef>Saldo</th><td mat-cell *matCellDef="let e"><strong>CHF {{ e.runningBalance | number:'1.2-2' }}</strong></td></ng-container>
-          <ng-container matColumnDef="recipient"><th mat-header-cell *matHeaderCellDef>Empfänger</th><td mat-cell *matCellDef="let e">{{ e.recipient || '-' }}</td></ng-container>
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let e">
-              <button mat-icon-button matTooltip="Bearbeiten" (click)="editEntry(e)">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button mat-icon-button color="warn" matTooltip="Löschen" (click)="deleteEntry(e)">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
-          <tr mat-row *matRowDef="let row; columns: columns;"></tr>
-        </table>
-        <p *ngIf="!cashBook.entries || cashBook.entries.length === 0" style="padding:16px;text-align:center;color:#999">Keine Einträge vorhanden.</p>
+        <div class="table-responsive">
+          <table mat-table [dataSource]="cashBook.entries || []" class="full-width">
+            <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Datum</th><td mat-cell *matCellDef="let e">{{ e.entryDate }}</td></ng-container>
+            <ng-container matColumnDef="receipt"><th mat-header-cell *matHeaderCellDef>Beleg Nr.</th><td mat-cell *matCellDef="let e">{{ e.receiptNumber || '-' }}</td></ng-container>
+            <ng-container matColumnDef="description"><th mat-header-cell *matHeaderCellDef>Beschreibung</th><td mat-cell *matCellDef="let e">{{ e.description }}</td></ng-container>
+            <ng-container matColumnDef="amountIn"><th mat-header-cell *matHeaderCellDef>Eingang</th><td mat-cell *matCellDef="let e" class="amount-in">{{ e.amountIn > 0 ? ('CHF ' + (e.amountIn | number:'1.2-2')) : '' }}</td></ng-container>
+            <ng-container matColumnDef="amountOut"><th mat-header-cell *matHeaderCellDef>Ausgang</th><td mat-cell *matCellDef="let e" class="amount-out">{{ e.amountOut > 0 ? ('CHF ' + (e.amountOut | number:'1.2-2')) : '' }}</td></ng-container>
+            <ng-container matColumnDef="balance"><th mat-header-cell *matHeaderCellDef>Saldo</th><td mat-cell *matCellDef="let e"><strong>CHF {{ e.runningBalance | number:'1.2-2' }}</strong></td></ng-container>
+            <ng-container matColumnDef="recipient"><th mat-header-cell *matHeaderCellDef>Empfänger</th><td mat-cell *matCellDef="let e">{{ e.recipient || '-' }}</td></ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let e">
+                <button mat-icon-button matTooltip="Bearbeiten" (click)="editEntry(e)"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button color="warn" matTooltip="Löschen" (click)="deleteEntry(e)"><mat-icon>delete</mat-icon></button>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+          </table>
+        </div>
+        <p *ngIf="!cashBook.entries || cashBook.entries.length === 0" class="empty-text">Keine Einträge vorhanden.</p>
       </mat-card-content>
     </mat-card>
   `,
   styles: [`
+    .summary-card { margin-bottom: 16px; border-radius: var(--card-radius, 12px) !important; }
+    .summary-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .summary-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      cursor: default;
+    }
+    .summary-label {
+      font-size: 12px;
+      color: var(--color-text-secondary, #607d8b);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .summary-value { font-size: 18px; font-weight: 600; }
+    .summary-item.in .summary-value { color: #2e7d32; }
+    .summary-item.out .summary-value { color: #c62828; }
+    .summary-item.total .summary-value { font-size: 22px; }
+    .edit-hint { font-size: 14px; vertical-align: middle; color: #999; }
+
     .edit-balance { display: inline-flex; align-items: center; gap: 4px; }
-    .balance-input { width: 100px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; font-weight: 600; text-align: right; }
-    .balance-input:focus { outline: none; border-color: #1976d2; }
+    .balance-input {
+      width: 100px;
+      padding: 4px 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: right;
+    }
+    .balance-input:focus { outline: none; border-color: var(--color-primary, #00796b); }
+
+    .amount-in { color: #2e7d32; }
+    .amount-out { color: #c62828; }
+    .empty-text { padding: 16px; text-align: center; color: #999; }
+
+    @media (max-width: 767px) {
+      .summary-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .summary-value { font-size: 16px; }
+      .summary-item.total .summary-value { font-size: 18px; }
+    }
   `]
 })
 export class CashBookDetailComponent implements OnInit {
@@ -169,7 +227,8 @@ export class CashBookDetailComponent implements OnInit {
     private router: Router,
     private api: ApiService,
     private dialog: MatDialog,
-    private notify: NotificationService
+    private notify: NotificationService,
+    private breakpointObserver: BreakpointObserver
   ) {}
 
   ngOnInit() { this.load(); }
@@ -199,8 +258,17 @@ export class CashBookDetailComponent implements OnInit {
     });
   }
 
+  private getDialogConfig(width: string) {
+    const isMobile = this.breakpointObserver.isMatched('(max-width: 767px)');
+    return {
+      width: isMobile ? '100vw' : width,
+      maxWidth: isMobile ? '100vw' : width,
+      height: isMobile ? '100vh' : 'auto' as string,
+    };
+  }
+
   addEntry() {
-    const ref = this.dialog.open(CashBookEntryDialogComponent, { width: '600px', data: {} });
+    const ref = this.dialog.open(CashBookEntryDialogComponent, { ...this.getDialogConfig('600px'), data: {} });
     ref.afterClosed().subscribe(result => {
       if (result) {
         result.cashBookId = this.cashBook.id;
@@ -210,7 +278,7 @@ export class CashBookDetailComponent implements OnInit {
   }
 
   editEntry(entry: any) {
-    const ref = this.dialog.open(CashBookEntryDialogComponent, { width: '600px', data: { entry } });
+    const ref = this.dialog.open(CashBookEntryDialogComponent, { ...this.getDialogConfig('600px'), data: { entry } });
     ref.afterClosed().subscribe(result => {
       if (result) {
         result.cashBookId = this.cashBook.id;

@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
@@ -12,6 +12,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NgIf } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { Subscription } from 'rxjs';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -26,7 +28,7 @@ import { AuthService } from '../../core/services/auth.service';
       <h2>Quittungen</h2>
     </div>
 
-    <mat-card style="margin-bottom:16px">
+    <mat-card class="filter-card">
       <mat-card-content>
         <div class="filter-row">
           <mat-form-field appearance="outline">
@@ -61,10 +63,12 @@ import { AuthService } from '../../core/services/auth.service';
               <mat-option value="BANK">Bank</mat-option>
             </mat-select>
           </mat-form-field>
-          <button mat-raised-button color="primary" (click)="applyFilters()" style="height:56px">
+        </div>
+        <div class="filter-actions">
+          <button mat-raised-button color="primary" (click)="applyFilters()">
             <mat-icon>filter_list</mat-icon> Filtern
           </button>
-          <button mat-button (click)="resetFilters()" style="height:56px">
+          <button mat-button (click)="resetFilters()">
             <mat-icon>clear</mat-icon> Zurücksetzen
           </button>
         </div>
@@ -73,52 +77,54 @@ import { AuthService } from '../../core/services/auth.service';
 
     <mat-card>
       <mat-card-content>
-        <table mat-table [dataSource]="receipts" matSort (matSortChange)="onSort($event)" *ngIf="receipts.length > 0" class="full-width">
-          <ng-container matColumnDef="receiptNumber">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="receiptNumber">Nr.</th>
-            <td mat-cell *matCellDef="let r"><strong>{{ r.receiptNumber }}</strong></td>
-          </ng-container>
-          <ng-container matColumnDef="date">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="receiptDate">Datum</th>
-            <td mat-cell *matCellDef="let r">{{ r.receiptDate }}</td>
-          </ng-container>
-          <ng-container matColumnDef="member">
-            <th mat-header-cell *matHeaderCellDef>Mitglied</th>
-            <td mat-cell *matCellDef="let r">
-              <a *ngIf="r.memberId" [routerLink]="['/members', r.memberId]">{{ r.memberName }}</a>
-              <span *ngIf="!r.memberId">-</span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="amount">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="amount">Betrag</th>
-            <td mat-cell *matCellDef="let r">CHF {{ r.amount }}</td>
-          </ng-container>
-          <ng-container matColumnDef="purpose">
-            <th mat-header-cell *matHeaderCellDef>Zweck</th>
-            <td mat-cell *matCellDef="let r">{{ purposeLabel(r.purpose, r.purposeText) }}</td>
-          </ng-container>
-          <ng-container matColumnDef="type">
-            <th mat-header-cell *matHeaderCellDef>Art</th>
-            <td mat-cell *matCellDef="let r">{{ r.paymentType === 'CASH' ? 'Bar' : 'Bank' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef>Aktionen</th>
-            <td mat-cell *matCellDef="let r">
-              <button mat-icon-button (click)="openPdf(r.id)" matTooltip="Anzeigen">
-                <mat-icon>visibility</mat-icon>
-              </button>
-              <button mat-icon-button (click)="downloadPdf(r.id, r.receiptNumber)" matTooltip="Herunterladen">
-                <mat-icon>download</mat-icon>
-              </button>
-              <button mat-icon-button color="warn" (click)="deleteReceipt(r)" *ngIf="canEdit" matTooltip="Löschen">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
-          <tr mat-row *matRowDef="let row; columns: columns;"></tr>
-        </table>
-        <p *ngIf="receipts.length === 0" style="padding:16px;text-align:center;color:#999">Keine Quittungen vorhanden.</p>
+        <div class="table-responsive">
+          <table mat-table [dataSource]="receipts" matSort (matSortChange)="onSort($event)" *ngIf="receipts.length > 0" class="full-width">
+            <ng-container matColumnDef="receiptNumber">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="receiptNumber">Nr.</th>
+              <td mat-cell *matCellDef="let r"><strong>{{ r.receiptNumber }}</strong></td>
+            </ng-container>
+            <ng-container matColumnDef="date">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="receiptDate">Datum</th>
+              <td mat-cell *matCellDef="let r">{{ r.receiptDate }}</td>
+            </ng-container>
+            <ng-container matColumnDef="member">
+              <th mat-header-cell *matHeaderCellDef>Mitglied</th>
+              <td mat-cell *matCellDef="let r">
+                <a *ngIf="r.memberId" [routerLink]="['/members', r.memberId]">{{ r.memberName }}</a>
+                <span *ngIf="!r.memberId">-</span>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="amount">Betrag</th>
+              <td mat-cell *matCellDef="let r">CHF {{ r.amount }}</td>
+            </ng-container>
+            <ng-container matColumnDef="purpose">
+              <th mat-header-cell *matHeaderCellDef>Zweck</th>
+              <td mat-cell *matCellDef="let r">{{ purposeLabel(r.purpose, r.purposeText) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="type">
+              <th mat-header-cell *matHeaderCellDef>Art</th>
+              <td mat-cell *matCellDef="let r">{{ r.paymentType === 'CASH' ? 'Bar' : 'Bank' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let r">
+                <button mat-icon-button (click)="openPdf(r.id)" matTooltip="Anzeigen">
+                  <mat-icon>visibility</mat-icon>
+                </button>
+                <button mat-icon-button (click)="downloadPdf(r.id, r.receiptNumber)" matTooltip="Herunterladen">
+                  <mat-icon>download</mat-icon>
+                </button>
+                <button mat-icon-button color="warn" (click)="deleteReceipt(r)" *ngIf="canEdit" matTooltip="Löschen">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+          </table>
+        </div>
+        <p *ngIf="receipts.length === 0" class="empty-text">Keine Quittungen vorhanden.</p>
         <mat-paginator
           [length]="totalElements"
           [pageSize]="pageSize"
@@ -131,13 +137,25 @@ import { AuthService } from '../../core/services/auth.service';
     </mat-card>
   `,
   styles: [`
-    .full-width { width: 100%; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .filter-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+    .filter-card { margin-bottom: 16px; }
+    .filter-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
     .filter-row mat-form-field { flex: 1; min-width: 150px; }
+    .filter-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .empty-text { padding: 16px; text-align: center; color: #999; }
+
+    @media (max-width: 767px) {
+      .filter-row { flex-direction: column; gap: 0; }
+      .filter-row mat-form-field { min-width: 100%; }
+      .filter-actions { flex-direction: row; }
+    }
   `]
 })
-export class ReceiptListComponent implements OnInit {
+export class ReceiptListComponent implements OnInit, OnDestroy {
   receipts: any[] = [];
   columns = ['receiptNumber', 'date', 'member', 'amount', 'purpose', 'type', 'actions'];
   page = 0;
@@ -152,18 +170,29 @@ export class ReceiptListComponent implements OnInit {
   paymentType = '';
   sortField = 'createdAt';
   sortDirection = 'desc';
+  private subs: Subscription[] = [];
 
   constructor(
     private api: ApiService,
     private notify: NotificationService,
-    private auth: AuthService
+    private auth: AuthService,
+    private breakpointObserver: BreakpointObserver
   ) {
     this.canEdit = auth.hasRole('ADMIN', 'KASSIER');
   }
 
   ngOnInit() {
+    this.subs.push(
+      this.breakpointObserver.observe('(max-width: 767px)').subscribe(result => {
+        this.columns = result.matches
+          ? ['receiptNumber', 'member', 'amount', 'actions']
+          : ['receiptNumber', 'date', 'member', 'amount', 'purpose', 'type', 'actions'];
+      })
+    );
     this.load();
   }
+
+  ngOnDestroy() { this.subs.forEach(s => s.unsubscribe()); }
 
   load() {
     const params: any = {

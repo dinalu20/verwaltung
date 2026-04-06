@@ -8,7 +8,8 @@ import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dial
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { NgIf, NgFor } from '@angular/common';
+import { NgIf } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 
@@ -56,33 +57,47 @@ export class UserFormDialogComponent {
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatDialogModule, NgIf, NgFor],
+  imports: [MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatDialogModule, NgIf],
   template: `
     <div class="page-header">
       <h2>Benutzerverwaltung</h2>
-      <button mat-raised-button color="primary" (click)="createUser()"><mat-icon>person_add</mat-icon> Neuer Benutzer</button>
+      <div class="action-buttons">
+        <button mat-raised-button color="primary" (click)="createUser()"><mat-icon>person_add</mat-icon> Neuer Benutzer</button>
+      </div>
     </div>
     <mat-card>
       <mat-card-content>
-        <table mat-table [dataSource]="users" class="full-width">
-          <ng-container matColumnDef="username"><th mat-header-cell *matHeaderCellDef>Benutzername</th><td mat-cell *matCellDef="let u">{{ u.username }}</td></ng-container>
-          <ng-container matColumnDef="fullName"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let u">{{ u.fullName }}</td></ng-container>
-          <ng-container matColumnDef="role"><th mat-header-cell *matHeaderCellDef>Rolle</th><td mat-cell *matCellDef="let u">{{ u.role }}</td></ng-container>
-          <ng-container matColumnDef="active"><th mat-header-cell *matHeaderCellDef>Aktiv</th><td mat-cell *matCellDef="let u">{{ u.active ? 'Ja' : 'Nein' }}</td></ng-container>
-          <tr mat-header-row *matHeaderRowDef="['username','fullName','role','active']"></tr>
-          <tr mat-row *matRowDef="let row; columns: ['username','fullName','role','active'];"></tr>
-        </table>
+        <div class="table-responsive">
+          <table mat-table [dataSource]="users" class="full-width">
+            <ng-container matColumnDef="username"><th mat-header-cell *matHeaderCellDef>Benutzername</th><td mat-cell *matCellDef="let u">{{ u.username }}</td></ng-container>
+            <ng-container matColumnDef="fullName"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let u">{{ u.fullName }}</td></ng-container>
+            <ng-container matColumnDef="role"><th mat-header-cell *matHeaderCellDef>Rolle</th><td mat-cell *matCellDef="let u">{{ u.role }}</td></ng-container>
+            <ng-container matColumnDef="active"><th mat-header-cell *matHeaderCellDef>Aktiv</th><td mat-cell *matCellDef="let u">{{ u.active ? 'Ja' : 'Nein' }}</td></ng-container>
+            <tr mat-header-row *matHeaderRowDef="['username','fullName','role','active']"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['username','fullName','role','active'];"></tr>
+          </table>
+        </div>
       </mat-card-content>
     </mat-card>
   `
 })
 export class UserListComponent implements OnInit {
   users: any[] = [];
-  constructor(private api: ApiService, private dialog: MatDialog, private notify: NotificationService) {}
+  constructor(
+    private api: ApiService,
+    private dialog: MatDialog,
+    private notify: NotificationService,
+    private breakpointObserver: BreakpointObserver
+  ) {}
   ngOnInit() { this.load(); }
   load() { this.api.get<any[]>('/api/auth/users').subscribe(d => this.users = d); }
   createUser() {
-    const ref = this.dialog.open(UserFormDialogComponent, { width: '500px' });
+    const isMobile = this.breakpointObserver.isMatched('(max-width: 767px)');
+    const ref = this.dialog.open(UserFormDialogComponent, {
+      width: isMobile ? '100vw' : '500px',
+      maxWidth: isMobile ? '100vw' : '500px',
+      height: isMobile ? '100vh' : 'auto',
+    });
     ref.afterClosed().subscribe(result => {
       if (result) {
         this.api.post('/api/auth/users', result).subscribe(() => { this.notify.success('Benutzer erstellt'); this.load(); });

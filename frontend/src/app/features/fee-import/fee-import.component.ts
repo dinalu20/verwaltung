@@ -54,13 +54,13 @@ interface FeeImportResult {
     <mat-card *ngIf="!preview">
       <mat-card-content>
         <div class="upload-area" (dragover)="$event.preventDefault()" (drop)="onDrop($event)">
-          <mat-icon style="font-size:48px;width:48px;height:48px;color:#999">upload_file</mat-icon>
+          <mat-icon class="upload-icon">upload_file</mat-icon>
           <p>Excel-Datei (.xlsx) hierher ziehen oder</p>
           <button mat-raised-button color="primary" (click)="fileInput.click()">Datei auswählen</button>
           <input #fileInput type="file" accept=".xlsx,.xls" (change)="onFileSelected($event)" hidden>
-          <p *ngIf="selectedFile" style="margin-top:8px"><strong>{{ selectedFile.name }}</strong></p>
+          <p *ngIf="selectedFile" class="file-name"><strong>{{ selectedFile.name }}</strong></p>
         </div>
-        <mat-progress-bar *ngIf="loading" mode="indeterminate" style="margin:16px 0"></mat-progress-bar>
+        <mat-progress-bar *ngIf="loading" mode="indeterminate" class="progress"></mat-progress-bar>
       </mat-card-content>
     </mat-card>
 
@@ -72,110 +72,103 @@ interface FeeImportResult {
           {{ preview.lowConfidenceCount }} unsicher,
           {{ preview.unmatchedCount }} nicht gefunden)
         </h3>
-        <div>
-          <button mat-raised-button (click)="reset()" style="margin-right:8px">
+        <div class="action-buttons">
+          <button mat-raised-button (click)="reset()">
             <mat-icon>arrow_back</mat-icon> Zurück
           </button>
-          <button mat-raised-button color="accent" (click)="selectAllMatched()" style="margin-right:8px">
-            Alle ≥85% auswählen
+          <button mat-raised-button color="accent" (click)="selectAllMatched()">
+            Alle ≥85%
           </button>
           <button mat-raised-button color="primary" (click)="confirmImport()" [disabled]="importing || selectedCount === 0">
-            <mat-icon>check</mat-icon> {{ selectedCount }} Einträge importieren
+            <mat-icon>check</mat-icon> {{ selectedCount }} importieren
           </button>
         </div>
       </div>
 
-      <mat-progress-bar *ngIf="importing" mode="indeterminate" style="margin-bottom:16px"></mat-progress-bar>
+      <mat-progress-bar *ngIf="importing" mode="indeterminate" class="progress"></mat-progress-bar>
 
       <mat-card>
-        <mat-card-content style="overflow-x:auto">
-          <table mat-table [dataSource]="preview.rows" class="full-width fee-import-table">
-            <!-- Checkbox -->
-            <ng-container matColumnDef="select">
-              <th mat-header-cell *matHeaderCellDef style="width:48px">
-                <mat-checkbox (change)="toggleAll($event.checked)" [checked]="allSelected"></mat-checkbox>
-              </th>
-              <td mat-cell *matCellDef="let row">
-                <mat-checkbox [(ngModel)]="row.selected" [disabled]="!row.matchedMemberId"></mat-checkbox>
-              </td>
-            </ng-container>
+        <mat-card-content>
+          <div class="table-responsive">
+            <table mat-table [dataSource]="preview.rows" class="full-width fee-import-table">
+              <ng-container matColumnDef="select">
+                <th mat-header-cell *matHeaderCellDef style="width:48px">
+                  <mat-checkbox (change)="toggleAll($event.checked)" [checked]="allSelected"></mat-checkbox>
+                </th>
+                <td mat-cell *matCellDef="let row">
+                  <mat-checkbox [(ngModel)]="row.selected" [disabled]="!row.matchedMemberId"></mat-checkbox>
+                </td>
+              </ng-container>
 
-            <!-- Nr -->
-            <ng-container matColumnDef="nr">
-              <th mat-header-cell *matHeaderCellDef>Nr</th>
-              <td mat-cell *matCellDef="let row">{{ row.rowNumber }}</td>
-            </ng-container>
+              <ng-container matColumnDef="nr">
+                <th mat-header-cell *matHeaderCellDef>Nr</th>
+                <td mat-cell *matCellDef="let row">{{ row.rowNumber }}</td>
+              </ng-container>
 
-            <!-- Excel Name -->
-            <ng-container matColumnDef="excelName">
-              <th mat-header-cell *matHeaderCellDef>Name (Excel)</th>
-              <td mat-cell *matCellDef="let row">
-                <strong>{{ row.excelLastName }}</strong> {{ row.excelFirstName }}
-              </td>
-            </ng-container>
+              <ng-container matColumnDef="excelName">
+                <th mat-header-cell *matHeaderCellDef>Name (Excel)</th>
+                <td mat-cell *matCellDef="let row">
+                  <strong>{{ row.excelLastName }}</strong> {{ row.excelFirstName }}
+                </td>
+              </ng-container>
 
-            <!-- Matched Member -->
-            <ng-container matColumnDef="matchedMember">
-              <th mat-header-cell *matHeaderCellDef>Zugeordnetes Mitglied</th>
-              <td mat-cell *matCellDef="let row">
-                <div *ngIf="!row.editing">
-                  <span *ngIf="row.matchedMemberName">{{ row.matchedMemberName }}</span>
-                  <span *ngIf="!row.matchedMemberName" style="color:#999">– nicht zugeordnet –</span>
-                  <button mat-icon-button (click)="startEditing(row)" matTooltip="Manuell zuordnen" style="margin-left:4px">
-                    <mat-icon style="font-size:18px">edit</mat-icon>
-                  </button>
-                </div>
-                <div *ngIf="row.editing" class="search-field">
-                  <mat-form-field appearance="outline" style="width:220px" subscriptSizing="dynamic">
-                    <input matInput
-                           [(ngModel)]="row.searchText"
-                           (ngModelChange)="searchMembers(row)"
-                           placeholder="Mitglied suchen..."
-                           [matAutocomplete]="auto">
-                    <mat-autocomplete #auto="matAutocomplete" (optionSelected)="assignMember(row, $event.option.value)">
-                      <mat-option *ngFor="let m of row.searchResults" [value]="m">
-                        {{ m.lastName }} {{ m.firstName }}
-                      </mat-option>
-                    </mat-autocomplete>
-                  </mat-form-field>
-                  <button mat-icon-button (click)="cancelEditing(row)"><mat-icon>close</mat-icon></button>
-                </div>
-              </td>
-            </ng-container>
+              <ng-container matColumnDef="matchedMember">
+                <th mat-header-cell *matHeaderCellDef>Zugeordnetes Mitglied</th>
+                <td mat-cell *matCellDef="let row">
+                  <div *ngIf="!row.editing">
+                    <span *ngIf="row.matchedMemberName">{{ row.matchedMemberName }}</span>
+                    <span *ngIf="!row.matchedMemberName" class="muted">– nicht zugeordnet –</span>
+                    <button mat-icon-button (click)="startEditing(row)" matTooltip="Manuell zuordnen">
+                      <mat-icon class="small-icon">edit</mat-icon>
+                    </button>
+                  </div>
+                  <div *ngIf="row.editing" class="search-field">
+                    <mat-form-field appearance="outline" class="inline-search" subscriptSizing="dynamic">
+                      <input matInput
+                             [(ngModel)]="row.searchText"
+                             (ngModelChange)="searchMembers(row)"
+                             placeholder="Mitglied suchen..."
+                             [matAutocomplete]="auto">
+                      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="assignMember(row, $event.option.value)">
+                        <mat-option *ngFor="let m of row.searchResults" [value]="m">
+                          {{ m.lastName }} {{ m.firstName }}
+                        </mat-option>
+                      </mat-autocomplete>
+                    </mat-form-field>
+                    <button mat-icon-button (click)="cancelEditing(row)"><mat-icon>close</mat-icon></button>
+                  </div>
+                </td>
+              </ng-container>
 
-            <!-- Confidence -->
-            <ng-container matColumnDef="confidence">
-              <th mat-header-cell *matHeaderCellDef>Konfidenz</th>
-              <td mat-cell *matCellDef="let row">
-                <span class="status-badge"
-                      [ngClass]="{'status-high': row.confidence >= 85, 'status-medium': row.confidence >= 60 && row.confidence < 85, 'status-low': row.confidence < 60}">
-                  {{ row.confidence }}%
-                </span>
-              </td>
-            </ng-container>
+              <ng-container matColumnDef="confidence">
+                <th mat-header-cell *matHeaderCellDef>Konfidenz</th>
+                <td mat-cell *matCellDef="let row">
+                  <span class="status-badge"
+                        [ngClass]="{'status-high': row.confidence >= 85, 'status-medium': row.confidence >= 60 && row.confidence < 85, 'status-low': row.confidence < 60}">
+                    {{ row.confidence }}%
+                  </span>
+                </td>
+              </ng-container>
 
-            <!-- Year columns (dynamic) -->
-            <ng-container *ngFor="let year of preview.years" [matColumnDef]="'y' + year">
-              <th mat-header-cell *matHeaderCellDef>{{ year }}</th>
-              <td mat-cell *matCellDef="let row"
-                  [ngClass]="{'cell-paid': row.yearPayments[year], 'cell-unpaid': !row.yearPayments[year]}">
-                {{ row.yearPayments[year] ? row.yearPayments[year] : '–' }}
-              </td>
-            </ng-container>
+              <ng-container *ngFor="let year of preview.years" [matColumnDef]="'y' + year">
+                <th mat-header-cell *matHeaderCellDef>{{ year }}</th>
+                <td mat-cell *matCellDef="let row"
+                    [ngClass]="{'cell-paid': row.yearPayments[year], 'cell-unpaid': !row.yearPayments[year]}">
+                  {{ row.yearPayments[year] ? row.yearPayments[year] : '–' }}
+                </td>
+              </ng-container>
 
-            <!-- Note -->
-            <ng-container matColumnDef="note">
-              <th mat-header-cell *matHeaderCellDef>Notiz</th>
-              <td mat-cell *matCellDef="let row" style="max-width:200px;font-size:11px;color:#666">
-                {{ row.note }}
-              </td>
-            </ng-container>
+              <ng-container matColumnDef="note">
+                <th mat-header-cell *matHeaderCellDef>Notiz</th>
+                <td mat-cell *matCellDef="let row" class="note-cell">{{ row.note }}</td>
+              </ng-container>
 
-            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;"
-                [ngClass]="{'row-unmatched': row.status === 'UNMATCHED', 'row-low': row.status === 'LOW_CONFIDENCE'}">
-            </tr>
-          </table>
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+                  [ngClass]="{'row-unmatched': row.status === 'UNMATCHED', 'row-low': row.status === 'LOW_CONFIDENCE'}">
+              </tr>
+            </table>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -183,18 +176,18 @@ interface FeeImportResult {
     <!-- Done -->
     <mat-card *ngIf="importDone">
       <mat-card-content>
-        <h3 style="color:#4caf50">Import abgeschlossen!</h3>
+        <h3 class="success-text">Import abgeschlossen!</h3>
         <p>{{ importedPayments }} Jahresbeiträge wurden erfolgreich importiert.</p>
         <button mat-raised-button color="primary" (click)="reset()">Neuer Import</button>
       </mat-card-content>
     </mat-card>
   `,
   styles: [`
-    .upload-area {
-      border: 2px dashed #ccc; border-radius: 8px; padding: 40px;
-      text-align: center; margin-bottom: 16px; background: #fafafa;
-    }
-    .upload-area:hover { border-color: #1976d2; background: #f0f7ff; }
+    .upload-icon { font-size: 48px; width: 48px; height: 48px; color: #999; }
+    .file-name { margin-top: 8px; }
+    .progress { margin: 16px 0; }
+    .muted { color: #999; }
+
     .fee-import-table td { padding: 4px 8px !important; }
     .fee-import-table th { padding: 4px 8px !important; white-space: nowrap; }
     .cell-paid { color: #2e7d32; font-weight: 500; }
@@ -202,6 +195,15 @@ interface FeeImportResult {
     .row-unmatched { background-color: #fff8f8; }
     .row-low { background-color: #fffde7; }
     .search-field { display: flex; align-items: center; gap: 4px; }
+    .inline-search { width: 200px; }
+    .small-icon { font-size: 18px; }
+    .note-cell { max-width: 200px; font-size: 11px; color: #666; }
+    .success-text { color: #2e7d32; }
+
+    @media (max-width: 767px) {
+      .inline-search { width: 150px; }
+      .fee-import-table { font-size: 12px; }
+    }
   `]
 })
 export class FeeImportComponent {
