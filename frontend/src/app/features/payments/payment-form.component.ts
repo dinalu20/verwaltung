@@ -74,6 +74,15 @@ import { NotificationService } from '../../core/services/notification.service';
           Ins Kassenbuch übernehmen
         </mat-checkbox>
 
+        <mat-form-field appearance="outline" class="full-width" *ngIf="payment.addToCashBook && openCashBooks.length > 0" style="margin-top:4px">
+          <mat-label>Kassenbuch</mat-label>
+          <mat-select [(ngModel)]="payment.cashBookId">
+            <mat-option *ngFor="let cb of openCashBooks" [value]="cb.id">
+              {{ cb.name }} ({{ cb.periodYear }})
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
         <div>
           <button mat-raised-button color="primary" (click)="submit()" [disabled]="saving || !payment.amount || !payment.purpose">
             <mat-icon>receipt</mat-icon> Zahlung erfassen & Quittung erstellen
@@ -98,16 +107,28 @@ import { NotificationService } from '../../core/services/notification.service';
   `
 })
 export class PaymentFormComponent implements OnInit {
-  payment: any = { amount: 300, paymentType: 'CASH', purpose: 'MEMBERSHIP_FEE', addToCashBook: true, forYear: new Date().getFullYear() };
+  payment: any = { amount: 300, paymentType: 'CASH', purpose: 'MEMBERSHIP_FEE', addToCashBook: true, forYear: new Date().getFullYear(), cashBookId: null };
   memberSearch = '';
   filteredMembers: any[] = [];
   selectedMember: any = null;
+  openCashBooks: any[] = [];
   saving = false;
   lastPayment: any = null;
 
   constructor(private api: ApiService, private notify: NotificationService) {}
 
-  ngOnInit() {}
+  ngOnInit() {
+    this.loadOpenCashBooks();
+  }
+
+  loadOpenCashBooks() {
+    this.api.get<any[]>('/api/cashbooks').subscribe(books => {
+      this.openCashBooks = (books || []).filter((b: any) => b.status === 'OPEN');
+      if (this.openCashBooks.length > 0 && !this.payment.cashBookId) {
+        this.payment.cashBookId = this.openCashBooks[0].id;
+      }
+    });
+  }
 
   searchMembers() {
     if (this.memberSearch.length < 2) { this.filteredMembers = []; return; }
