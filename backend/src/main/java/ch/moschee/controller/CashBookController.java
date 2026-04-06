@@ -56,6 +56,12 @@ public class CashBookController {
         return ResponseEntity.ok(cashBookService.createCashBook(dto));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','KASSIER')")
+    public ResponseEntity<CashBookDto> updateCashBook(@PathVariable Long id, @RequestBody CashBookDto dto) {
+        return ResponseEntity.ok(cashBookService.updateCashBook(id, dto));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','KASSIER')")
     public ResponseEntity<Void> deleteCashBook(@PathVariable Long id) {

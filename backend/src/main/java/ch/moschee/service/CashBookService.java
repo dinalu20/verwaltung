@@ -139,6 +139,20 @@ public class CashBookService {
     }
 
     @Transactional
+    public CashBookDto updateCashBook(Long id, CashBookDto dto) {
+        CashBook book = findById(id);
+        if (dto.getOpeningBalance() != null) {
+            book.setOpeningBalance(dto.getOpeningBalance());
+        }
+        if (dto.getName() != null) {
+            book.setName(dto.getName());
+        }
+        book = cashBookRepository.save(book);
+        auditService.logAction("CashBook", id, "UPDATE", null, dto.getName());
+        return getCashBookWithEntries(id);
+    }
+
+    @Transactional
     public void closeCashBook(Long id) {
         CashBook book = findById(id);
         book.setStatus(CashBookStatus.CLOSED);

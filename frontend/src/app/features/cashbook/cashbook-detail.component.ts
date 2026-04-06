@@ -83,7 +83,7 @@ export class CashBookEntryDialogComponent {
 @Component({
   selector: 'app-cashbook-detail',
   standalone: true,
-  imports: [MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatDialogModule, MatTooltipModule, NgIf, DecimalPipe],
+  imports: [MatCardModule, MatTableModule, MatButtonModule, MatIconModule, MatDialogModule, MatTooltipModule, NgIf, DecimalPipe, FormsModule],
   template: `
     <div class="page-header" *ngIf="cashBook">
       <h2>{{ cashBook.name }}</h2>
@@ -103,7 +103,14 @@ export class CashBookEntryDialogComponent {
     <mat-card *ngIf="cashBook" style="margin-bottom:16px">
       <mat-card-content>
         <div style="display:flex;gap:32px;font-size:16px;flex-wrap:wrap">
-          <span>Eröffnung: <strong>CHF {{ cashBook.openingBalance | number:'1.2-2' }}</strong></span>
+          <span *ngIf="!editingBalance" style="cursor:pointer" (click)="startEditBalance()" matTooltip="Klicken zum Bearbeiten">
+            Eröffnung: <strong>CHF {{ cashBook.openingBalance | number:'1.2-2' }}</strong> <mat-icon style="font-size:14px;vertical-align:middle;color:#999">edit</mat-icon>
+          </span>
+          <span *ngIf="editingBalance" class="edit-balance">
+            Eröffnung: CHF <input type="number" [(ngModel)]="editBalance" step="0.01" class="balance-input">
+            <button mat-icon-button color="primary" (click)="saveBalance()" matTooltip="Speichern"><mat-icon>check</mat-icon></button>
+            <button mat-icon-button (click)="cancelEditBalance()" matTooltip="Abbrechen"><mat-icon>close</mat-icon></button>
+          </span>
           <span style="color:#4caf50">Eingänge: <strong>CHF {{ cashBook.totalIn | number:'1.2-2' }}</strong></span>
           <span style="color:#f44336">Ausgänge: <strong>CHF {{ cashBook.totalOut | number:'1.2-2' }}</strong></span>
           <span>Saldo: <strong>CHF {{ cashBook.currentBalance | number:'1.2-2' }}</strong></span>
@@ -138,10 +145,17 @@ export class CashBookEntryDialogComponent {
         <p *ngIf="!cashBook.entries || cashBook.entries.length === 0" style="padding:16px;text-align:center;color:#999">Keine Einträge vorhanden.</p>
       </mat-card-content>
     </mat-card>
-  `
+  `,
+  styles: [`
+    .edit-balance { display: inline-flex; align-items: center; gap: 4px; }
+    .balance-input { width: 100px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; font-weight: 600; text-align: right; }
+    .balance-input:focus { outline: none; border-color: #1976d2; }
+  `]
 })
 export class CashBookDetailComponent implements OnInit {
   cashBook: any = null;
+  editingBalance = false;
+  editBalance = 0;
   columns = ['date', 'receipt', 'description', 'amountIn', 'amountOut', 'balance', 'recipient', 'actions'];
 
   constructor(
@@ -157,6 +171,26 @@ export class CashBookDetailComponent implements OnInit {
   load() {
     const id = this.route.snapshot.paramMap.get('id');
     this.api.get<any>(`/api/cashbooks/${id}`).subscribe(d => this.cashBook = d);
+  }
+
+  startEditBalance() {
+    this.editBalance = this.cashBook.openingBalance;
+    this.editingBalance = true;
+  }
+
+  cancelEditBalance() {
+    this.editingBalance = false;
+  }
+
+  saveBalance() {
+    this.api.put(`/api/cashbooks/${this.cashBook.id}`, { openingBalance: this.editBalance }).subscribe({
+      next: (updated: any) => {
+        this.cashBook = updated;
+        this.editingBalance = false;
+        this.notify.success('Eröffnungssaldo aktualisiert');
+      },
+      error: (err) => this.notify.error('Fehler: ' + (err.error?.message || 'Unbekannt'))
+    });
   }
 
   addEntry() {
