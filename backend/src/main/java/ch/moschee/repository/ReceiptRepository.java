@@ -30,8 +30,8 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
     Page<Receipt> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     @Query("SELECT r FROM Receipt r LEFT JOIN FETCH r.member m WHERE " +
-           "(:search IS NULL OR LOWER(r.receiptNumber) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR LOWER(CONCAT(m.lastName, ' ', m.firstName)) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "(:search IS NULL OR LOWER(r.receiptNumber) LIKE :search " +
+           "OR LOWER(CONCAT(m.lastName, ' ', m.firstName)) LIKE :search) " +
            "AND (:dateFrom IS NULL OR r.receiptDate >= :dateFrom) " +
            "AND (:dateTo IS NULL OR r.receiptDate <= :dateTo) " +
            "AND (:purpose IS NULL OR r.purpose = :purpose) " +

@@ -67,7 +67,7 @@ public class ReceiptService {
                                            String purpose, String paymentType, Pageable pageable) {
         PaymentPurpose purposeEnum = (purpose != null && !purpose.isBlank()) ? PaymentPurpose.valueOf(purpose) : null;
         PaymentType typeEnum = (paymentType != null && !paymentType.isBlank()) ? PaymentType.valueOf(paymentType) : null;
-        String searchParam = (search != null && !search.isBlank()) ? search : null;
+        String searchParam = (search != null && !search.isBlank()) ? "%" + search.toLowerCase() + "%" : null;
         return receiptRepository.searchReceipts(searchParam, dateFrom, dateTo, purposeEnum, typeEnum, pageable).map(this::toDto);
     }
 

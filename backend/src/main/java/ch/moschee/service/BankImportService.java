@@ -15,12 +15,14 @@ import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import ch.moschee.util.CsvCharsetDetector;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
@@ -134,6 +136,16 @@ public class BankImportService {
     }
 
     private List<BankImportLine> parseBankFile(MultipartFile file, BankImport bankImport) {
+        String fileName = file.getOriginalFilename();
+        boolean isExcel = fileName != null && (fileName.endsWith(".xlsx") || fileName.endsWith(".xls"));
+
+        if (isExcel) {
+            return parseExcelFile(file, bankImport);
+        }
+        return parseCsvFile(file, bankImport);
+    }
+
+    private List<BankImportLine> parseCsvFile(MultipartFile file, BankImport bankImport) {
         List<BankImportLine> lines = new ArrayList<>();
         try {
             byte[] data = file.getInputStream().readAllBytes();
@@ -148,41 +160,124 @@ public class BankImportService {
             String[] header = reader.readNext();
             if (header == null) return lines;
 
-            int colDate = findCol(header, "Datum", "Buchungsdatum", "Date", "Valuta");
-            int colText = findCol(header, "Text", "Buchungstext", "Beschreibung", "Description", "Mitteilungen");
-            int colAmount = findCol(header, "Betrag", "Amount", "Gutschrift", "Kredit");
+            ColumnMapping cols = detectColumns(header);
+            log.info("CSV columns detected -- date:{} text:{} gutschrift:{} betrag:{}", cols.date, cols.text, cols.gutschrift, cols.betrag);
 
             String[] row;
             while ((row = reader.readNext()) != null) {
                 try {
-                    String dateStr = colDate >= 0 && colDate < row.length ? row[colDate].trim() : null;
-                    String text = colText >= 0 && colText < row.length ? row[colText].trim() : "";
-                    String amountStr = colAmount >= 0 && colAmount < row.length ? row[colAmount].trim() : "0";
-
-                    if (amountStr.isEmpty() || text.isEmpty()) continue;
-
-                    amountStr = amountStr.replace("'", "").replace(",", ".");
-                    BigDecimal amount = new BigDecimal(amountStr);
-                    if (amount.compareTo(BigDecimal.ZERO) <= 0) continue;
-
-                    LocalDate bookingDate = parseDate(dateStr);
-
-                    BankImportLine line = BankImportLine.builder()
-                            .bankImport(bankImport)
-                            .bookingDate(bookingDate)
-                            .bookingText(text)
-                            .amount(amount)
-                            .matchStatus(MatchStatus.PENDING)
-                            .build();
-                    lines.add(line);
+                    BankImportLine line = buildLine(row, cols, bankImport);
+                    if (line != null) lines.add(line);
                 } catch (Exception e) {
                     log.warn("Skipping bank import row: {}", e.getMessage());
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse bank file", e);
+            throw new RuntimeException("Failed to parse bank CSV file", e);
         }
         return lines;
+    }
+
+    private List<BankImportLine> parseExcelFile(MultipartFile file, BankImport bankImport) {
+        List<BankImportLine> lines = new ArrayList<>();
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(file.getInputStream().readAllBytes()))) {
+            Sheet sheet = workbook.getSheetAt(0);
+            if (sheet.getPhysicalNumberOfRows() < 2) return lines;
+
+            Row headerRow = sheet.getRow(0);
+            String[] header = new String[headerRow.getLastCellNum()];
+            for (int i = 0; i < header.length; i++) {
+                Cell cell = headerRow.getCell(i);
+                header[i] = cell != null ? getCellString(cell) : "";
+            }
+
+            ColumnMapping cols = detectColumns(header);
+            log.info("Excel columns detected -- date:{} text:{} gutschrift:{} betrag:{}", cols.date, cols.text, cols.gutschrift, cols.betrag);
+
+            DataFormatter formatter = new DataFormatter();
+            for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+                try {
+                    String[] rowData = new String[header.length];
+                    for (int c = 0; c < header.length; c++) {
+                        Cell cell = row.getCell(c);
+                        if (cell != null) {
+                            if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+                                LocalDate ld = cell.getLocalDateTimeCellValue().toLocalDate();
+                                rowData[c] = ld.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+                            } else {
+                                rowData[c] = formatter.formatCellValue(cell);
+                            }
+                        } else {
+                            rowData[c] = "";
+                        }
+                    }
+                    BankImportLine line = buildLine(rowData, cols, bankImport);
+                    if (line != null) lines.add(line);
+                } catch (Exception e) {
+                    log.warn("Skipping Excel row {}: {}", r, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse bank Excel file", e);
+        }
+        return lines;
+    }
+
+    private String getCellString(Cell cell) {
+        if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue();
+        if (cell.getCellType() == CellType.NUMERIC) return String.valueOf(cell.getNumericCellValue());
+        return new DataFormatter().formatCellValue(cell);
+    }
+
+    private BankImportLine buildLine(String[] row, ColumnMapping cols, BankImport bankImport) {
+        String dateStr = getCell(row, cols.date);
+        String text = getCell(row, cols.text);
+
+        String amountStr = getCell(row, cols.gutschrift);
+        if (amountStr.isEmpty()) {
+            amountStr = getCell(row, cols.betrag);
+        }
+
+        if (amountStr.isEmpty() || text.isEmpty()) return null;
+
+        amountStr = amountStr.replace("'", "").replace(",", ".");
+        BigDecimal amount;
+        try {
+            amount = new BigDecimal(amountStr);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) return null;
+
+        return BankImportLine.builder()
+                .bankImport(bankImport)
+                .bookingDate(parseDate(dateStr))
+                .bookingText(text)
+                .amount(amount)
+                .matchStatus(MatchStatus.PENDING)
+                .build();
+    }
+
+    private String getCell(String[] row, int col) {
+        return (col >= 0 && col < row.length) ? row[col].trim() : "";
+    }
+
+    private static class ColumnMapping {
+        int date = -1;
+        int text = -1;
+        int gutschrift = -1;
+        int betrag = -1;
+    }
+
+    private ColumnMapping detectColumns(String[] header) {
+        ColumnMapping cols = new ColumnMapping();
+        cols.date = findCol(header, "Buchungsdatum", "Datum", "Date", "Valutadatum", "Valuta");
+        cols.text = findCol(header, "Buchungstext", "Text", "Beschreibung", "Description", "Mitteilungen", "Auftragsart");
+        cols.gutschrift = findCol(header, "Gutschrift", "Kredit", "Credit");
+        cols.betrag = findCol(header, "Betrag", "Amount");
+        return cols;
     }
 
     private int findCol(String[] header, String... candidates) {
