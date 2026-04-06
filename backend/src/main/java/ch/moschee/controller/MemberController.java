@@ -16,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -76,8 +77,13 @@ public class MemberController {
     @PreAuthorize("hasAnyRole('ADMIN','KASSIER')")
     public ResponseEntity<Map<String, Object>> quickPay(
             @PathVariable Long id,
-            @PathVariable int year) {
-        annualFeeService.quickPay(id, year);
+            @PathVariable int year,
+            @RequestBody(required = false) Map<String, Object> body) {
+        BigDecimal amount = null;
+        if (body != null && body.containsKey("amount")) {
+            amount = new BigDecimal(body.get("amount").toString());
+        }
+        annualFeeService.quickPay(id, year, amount);
         return ResponseEntity.ok(Map.of("memberId", id, "year", year, "status", "PAID"));
     }
 

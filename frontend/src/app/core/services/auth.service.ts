@@ -34,7 +34,18 @@ export class AuthService {
   }
 
   get isLoggedIn(): boolean {
-    return !!this.currentUser?.accessToken;
+    return !!this.currentUser?.accessToken && !this.isTokenExpired;
+  }
+
+  get isTokenExpired(): boolean {
+    const token = this.currentUser?.accessToken;
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
   }
 
   get token(): string | null {

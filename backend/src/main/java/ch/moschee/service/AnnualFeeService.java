@@ -86,7 +86,7 @@ public class AnnualFeeService {
     }
 
     @Transactional
-    public void quickPay(Long memberId, int year) {
+    public void quickPay(Long memberId, int year, BigDecimal amount) {
         MemberAnnualFee fee = feeRepository.findByMemberIdAndYear(memberId, year)
                 .orElseGet(() -> {
                     Member member = memberRepository.findById(memberId)
@@ -99,9 +99,13 @@ public class AnnualFeeService {
                             .build();
                 });
 
-        BigDecimal remaining = fee.getAmountDue().subtract(fee.getAmountPaid());
-        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
-            fee.addPayment(remaining);
+        if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
+            fee.addPayment(amount);
+        } else {
+            BigDecimal remaining = fee.getAmountDue().subtract(fee.getAmountPaid());
+            if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                fee.addPayment(remaining);
+            }
         }
         feeRepository.save(fee);
     }
