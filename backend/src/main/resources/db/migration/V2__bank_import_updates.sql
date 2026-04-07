@@ -1,0 +1,2 @@
+ALTER TABLE bank_import_line ADD COLUMN is_debit BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE bank_import_line ALTER COLUMN booking_text TYPE VARCHAR(2000);

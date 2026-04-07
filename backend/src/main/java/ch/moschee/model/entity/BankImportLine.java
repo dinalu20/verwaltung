@@ -22,7 +22,7 @@ public class BankImportLine {
     @Column(name = "booking_date")
     private LocalDate bookingDate;
 
-    @Column(name = "booking_text", length = 1000)
+    @Column(name = "booking_text", length = 2000)
     private String bookingText;
 
     @Column(nullable = false, precision = 12, scale = 2)
@@ -40,6 +40,10 @@ public class BankImportLine {
     @Column(name = "match_status", nullable = false, length = 20)
     @Builder.Default
     private MatchStatus matchStatus = MatchStatus.PENDING;
+
+    @Column(name = "is_debit", nullable = false)
+    @Builder.Default
+    private Boolean isDebit = false;
 
     @Column(name = "confirmed_by")
     private Long confirmedBy;

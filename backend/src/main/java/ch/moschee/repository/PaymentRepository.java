@@ -38,4 +38,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.member.id = :memberId AND p.purpose = 'MEMBERSHIP_FEE' AND p.forYear = :year")
     BigDecimal sumMembershipFeesByMemberAndYear(@Param("memberId") Long memberId, @Param("year") Integer year);
+
+    List<Payment> findByBankImportLineId(Long bankImportLineId);
+
+    List<Payment> findByBankImportLineIdIn(List<Long> bankImportLineIds);
 }

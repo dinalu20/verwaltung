@@ -17,4 +17,7 @@ public interface MemberAnnualFeeRepository extends JpaRepository<MemberAnnualFee
     List<MemberAnnualFee> findAllForYearRange(@Param("fromYear") int fromYear, @Param("toYear") int toYear);
 
     List<MemberAnnualFee> findByYear(Integer year);
+
+    @Query("SELECT f FROM MemberAnnualFee f WHERE f.member.id = :memberId AND f.status <> 'PAID' AND f.status <> 'OVERPAID' ORDER BY f.year ASC")
+    List<MemberAnnualFee> findOpenFeesByMemberId(@Param("memberId") Long memberId);
 }

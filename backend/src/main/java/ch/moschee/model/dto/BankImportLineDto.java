@@ -13,4 +13,5 @@ public class BankImportLineDto {
     private String suggestedMemberName;
     private Integer matchConfidence;
     private String matchStatus;
+    private Boolean isDebit;
 }

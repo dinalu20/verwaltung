@@ -138,4 +138,74 @@ public class AnnualFeeService {
             feeRepository.save(fee);
         });
     }
+
+    /**
+     * Find the years that are open/partial for a member, ordered oldest first.
+     * Includes the current year even if no fee record exists yet.
+     */
+    public List<Integer> getOpenYears(Long memberId) {
+        List<MemberAnnualFee> openFees = feeRepository.findOpenFeesByMemberId(memberId);
+        List<Integer> years = new ArrayList<>();
+        for (MemberAnnualFee f : openFees) {
+            years.add(f.getYear());
+        }
+        int currentYear = java.time.LocalDate.now().getYear();
+        if (!years.contains(currentYear)) {
+            // Check if the current year is already paid
+            var existing = feeRepository.findByMemberIdAndYear(memberId, currentYear);
+            if (existing.isEmpty() || existing.get().getAmountPaid().compareTo(existing.get().getAmountDue()) < 0) {
+                years.add(currentYear);
+                Collections.sort(years);
+            }
+        }
+        return years;
+    }
+
+    /**
+     * Distribute a payment amount across open years, oldest first.
+     * Returns the list of {year, amount} pairs that were applied.
+     */
+    @Transactional
+    public List<Map.Entry<Integer, BigDecimal>> distributePayment(Long memberId, BigDecimal totalAmount) {
+        List<Integer> openYears = getOpenYears(memberId);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Member not found"));
+
+        List<Map.Entry<Integer, BigDecimal>> allocations = new ArrayList<>();
+        BigDecimal remaining = totalAmount;
+
+        for (int year : openYears) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
+
+            MemberAnnualFee fee = feeRepository.findByMemberIdAndYear(memberId, year)
+                    .orElseGet(() -> MemberAnnualFee.builder()
+                            .member(member)
+                            .year(year)
+                            .amountDue(new BigDecimal("300.00"))
+                            .amountPaid(BigDecimal.ZERO)
+                            .build());
+
+            BigDecimal due = fee.getAmountDue().subtract(fee.getAmountPaid());
+            if (due.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            BigDecimal toApply = remaining.min(due);
+            fee.addPayment(toApply);
+            feeRepository.save(fee);
+
+            allocations.add(Map.entry(year, toApply));
+            remaining = remaining.subtract(toApply);
+        }
+
+        // If there's remaining amount, put it on the last open year (overpayment)
+        if (remaining.compareTo(BigDecimal.ZERO) > 0 && !openYears.isEmpty()) {
+            int lastYear = openYears.get(openYears.size() - 1);
+            MemberAnnualFee fee = feeRepository.findByMemberIdAndYear(memberId, lastYear)
+                    .orElseThrow();
+            fee.addPayment(remaining);
+            feeRepository.save(fee);
+            allocations.add(Map.entry(lastYear, remaining));
+        }
+
+        return allocations;
+    }
 }
